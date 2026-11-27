@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "nest start --watch --preserveWatchOutput",
-    "build": "npx nest build",
+    "build": "tsc -p tsconfig.build.json",
     "start": "node dist/main.js",
     "db:push": "prisma db push && node prisma/indexes.js",
     "db:indexes": "node prisma/indexes.js",
