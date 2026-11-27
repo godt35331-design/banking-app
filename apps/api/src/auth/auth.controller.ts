@@ -26,7 +26,7 @@ export class AuthController {
   async register(@Body() dto: RegisterDto, @Res({ passthrough: true }) res: Response) {
     const { token, user } = await this.auth.register(dto);
     res.cookie('token', token, COOKIE_OPTS);
-    return user;
+    return { ...user, token };
   }
 
   // 10 sign-in attempts per 15 minutes for one email from one address.
@@ -36,7 +36,7 @@ export class AuthController {
   async login(@Body() dto: LoginDto, @Res({ passthrough: true }) res: Response) {
     const { token, user } = await this.auth.login(dto);
     res.cookie('token', token, COOKIE_OPTS);
-    return user;
+    return { ...user, token };
   }
 
   @Throttle({ default: { limit: 5, ttl: 15 * 60_000 } })

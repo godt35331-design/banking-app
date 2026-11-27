@@ -6,7 +6,22 @@ const BASE = import.meta.env.VITE_API_URL
 
 const OFFLINE = "We can't reach the bank's server right now. Please try again in a moment.";
 
-/** A readable error: the server's message, or a plain explanation when the server can't be reached. */
+const TOKEN_KEY = 'auth_token';
+
+export function setToken(token: string | null) {
+  if (token) localStorage.setItem(TOKEN_KEY, token);
+  else localStorage.removeItem(TOKEN_KEY);
+}
+
+export function getToken(): string | null {
+  try { return localStorage.getItem(TOKEN_KEY); } catch { return null; }
+}
+
+function authHeaders(): Record<string, string> {
+  const token = getToken();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
 async function failure(res: Response) {
   const body = await res.json().catch(() => ({}));
   const msg = Array.isArray(body.message) ? body.message.join('. ') : body.message;
@@ -17,7 +32,11 @@ async function failure(res: Response) {
 
 async function send(path: string, init: RequestInit) {
   try {
-    return await trackBusy(fetch(`${BASE}${path}`, { credentials: 'include', ...init }));
+    return await trackBusy(fetch(`${BASE}${path}`, {
+      credentials: 'include',
+      ...init,
+      headers: { ...authHeaders(), ...init.headers },
+    }));
   } catch {
     throw new Error(OFFLINE);
   }
@@ -38,7 +57,6 @@ export const api = {
   put: <T>(path: string, data?: unknown) =>
     request<T>(path, { method: 'PUT', body: data ? JSON.stringify(data) : undefined }),
   del: <T>(path: string) => request<T>(path, { method: 'DELETE' }),
-  /** multipart/form-data upload (the browser sets the boundary header itself). */
   upload: async <T>(path: string, form: FormData): Promise<T> => {
     const res = await send(path, { method: 'POST', body: form });
     if (!res.ok) throw await failure(res);

@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
-import { api } from '../lib/api';
+import { api, setToken, getToken } from '../lib/api';
 
 interface User {
   id: string;
@@ -30,10 +30,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   const refresh = useCallback(async () => {
+    if (!getToken()) { setLoading(false); return; }
     try {
       const u = await api.get<User>('/auth/me');
       setUser(u);
     } catch {
+      setToken(null);
       setUser(null);
     } finally {
       setLoading(false);
@@ -43,17 +45,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => { refresh(); }, [refresh]);
 
   const login = async (email: string, password: string, pin: string) => {
-    const u = await api.post<User>('/auth/login', { email, password, pin });
+    const res = await api.post<User & { token?: string }>('/auth/login', { email, password, pin });
+    if (res.token) setToken(res.token);
+    const { token: _, ...u } = res as any;
     setUser(u);
   };
 
   const register = async (data: { name: string; email: string; password: string; pin: string; phone?: string }) => {
-    const u = await api.post<User>('/auth/register', data);
+    const res = await api.post<User & { token?: string }>('/auth/register', data);
+    if (res.token) setToken(res.token);
+    const { token: _, ...u } = res as any;
     setUser(u);
   };
 
   const logout = async () => {
-    await api.post('/auth/logout');
+    await api.post('/auth/logout').catch(() => {});
+    setToken(null);
     setUser(null);
   };
 
