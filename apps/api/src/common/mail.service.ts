@@ -16,7 +16,7 @@ export class MailService {
     this.apiKey = config.get<string>('RESEND_API_KEY') || config.get<string>('SMTP_PASS') || null;
     this.from = config.get<string>('MAIL_FROM') || `${BANK_NAME} <no-reply@sterlingcrestbank.com>`;
     // Must be a public https URL: email apps can't load images from localhost.
-    this.logoUrl = config.get<string>('MAIL_LOGO_URL') || 'https://www.sterlingcrestbank.com/logo-email.png';
+    this.logoUrl = config.get<string>('MAIL_LOGO_URL') || 'https://www.sterlingcrestbank.com/logo-email-header.png';
   }
 
   get configured() {
@@ -59,12 +59,18 @@ export class MailService {
       .split(/\n{2,}/)
       .map(p => `<p style="margin:0 0 14px;line-height:1.6">${esc(p).replace(/\n/g, '<br>')}</p>`)
       .join('');
-    return `<!doctype html><html><body style="margin:0;padding:24px 16px;font-family:Arial,Helvetica,sans-serif;color:#1d1d1f;background:#ffffff">
-<img src="${this.logoUrl}" alt="${esc(BANK_NAME)}" width="120" height="87" style="display:block;width:120px;height:87px;border:0;outline:none;margin-bottom:24px">
+    return `<!doctype html><html><body style="margin:0;padding:16px;font-family:Arial,Helvetica,sans-serif;color:#1d1d1f;background:#ffffff">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;margin:0 auto">
+<tr><td align="center" bgcolor="#14161a" style="background:#14161a;border-radius:18px 18px 0 0;padding:24px 28px">
+<img src="${this.logoUrl}" alt="${esc(BANK_NAME)}" width="116" height="84" style="display:block;width:116px;height:84px;border:0;outline:none">
+</td></tr>
+<tr><td style="padding:28px 4px 8px">
 <h1 style="margin:0 0 18px;font-size:20px;font-weight:600">${esc(subject)}</h1>
 ${paragraphs}
 <p style="margin:28px 0 0;padding-top:16px;border-top:1px solid #eee;font-size:12px;color:#77736d;line-height:1.5">
-${esc(BANK_NAME)}<br>We will never ask for your password, PIN or full card number by email.</p>
+You're getting this email because you have an account with ${esc(BANK_NAME)}.<br>We will never ask for your password, PIN or full card number by email.</p>
+</td></tr>
+</table>
 </body></html>`;
   }
 }
