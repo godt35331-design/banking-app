@@ -9,11 +9,14 @@ const esc = (s: string) =>
 export class MailService {
   private readonly log = new Logger('Mail');
   private readonly apiKey: string | null;
+  private readonly logoUrl: string;
   readonly from: string;
 
   constructor(config: ConfigService) {
     this.apiKey = config.get<string>('RESEND_API_KEY') || config.get<string>('SMTP_PASS') || null;
     this.from = config.get<string>('MAIL_FROM') || `${BANK_NAME} <no-reply@sterlingcrestbank.com>`;
+    const webOrigin = config.get<string>('WEB_ORIGIN') || 'http://localhost:5173';
+    this.logoUrl = `${webOrigin}/logo-light.png`;
   }
 
   get configured() {
@@ -59,7 +62,7 @@ export class MailService {
     return `<!doctype html><html><body style="margin:0;background:#f4f1ec;font-family:Arial,Helvetica,sans-serif;color:#1d1d1f">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f1ec;padding:24px 12px"><tr><td align="center">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border-radius:18px;overflow:hidden">
-<tr><td align="center" style="background:#14161a;color:#ffffff;padding:22px 28px;font-size:17px;font-weight:bold">${esc(BANK_NAME)}</td></tr>
+<tr><td align="center" style="background:#14161a;color:#ffffff;padding:22px 28px;font-size:17px;font-weight:bold"><img src="${this.logoUrl}" alt="${esc(BANK_NAME)}" height="84" style="display:block;height:84px;width:auto;border:0;outline:none"></td></tr>
 <tr><td style="padding:28px 28px 8px"><h1 style="margin:0 0 18px;font-size:20px">${esc(subject)}</h1>${paragraphs}</td></tr>
 <tr><td style="padding:8px 28px 24px;font-size:12px;color:#77736d;border-top:1px solid #eee">
 You're getting this email because you have an account with ${esc(BANK_NAME)}.<br>
