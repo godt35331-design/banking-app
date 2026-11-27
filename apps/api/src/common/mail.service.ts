@@ -16,7 +16,7 @@ export class MailService {
     this.apiKey = config.get<string>('RESEND_API_KEY') || config.get<string>('SMTP_PASS') || null;
     this.from = config.get<string>('MAIL_FROM') || `${BANK_NAME} <no-reply@sterlingcrestbank.com>`;
     // Must be a public https URL: email apps can't load images from localhost.
-    this.logoUrl = config.get<string>('MAIL_LOGO_URL') || 'https://www.sterlingcrestbank.com/logo-email-header.png';
+    this.logoUrl = config.get<string>('MAIL_LOGO_URL') || 'https://www.sterlingcrestbank.com/logo-email-header.png?v=2';
   }
 
   get configured() {
