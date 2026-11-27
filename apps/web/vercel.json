@@ -1,0 +1,9 @@
+{
+  "buildCommand": "cd ../.. && npm run build -w @kestrel/shared && npm run build -w @kestrel/web",
+  "outputDirectory": "dist",
+  "installCommand": "cd ../.. && npm install",
+  "framework": "vite",
+  "rewrites": [
+    { "source": "/((?!api/|assets/|socket\\.io/).*)", "destination": "/index.html" }
+  ]
+}

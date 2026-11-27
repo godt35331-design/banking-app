@@ -1,0 +1,31 @@
+services:
+  - type: web
+    name: sterling-crest-api
+    runtime: node
+    region: oregon
+    rootDir: .
+    buildCommand: npm install && npm run build -w @kestrel/shared && npm run build -w @kestrel/api && cd apps/api && npx prisma generate
+    startCommand: cd apps/api && node dist/main.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: TRUST_PROXY
+        value: "1"
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: CARD_ENCRYPTION_KEY
+        sync: false
+      - key: WEB_ORIGIN
+        sync: false
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        sync: false
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
+      - key: MAIL_FROM
+        sync: false

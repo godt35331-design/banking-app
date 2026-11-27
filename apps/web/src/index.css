@@ -1,0 +1,445 @@
+@import "tailwindcss";
+
+/* Design tokens: Sterling Crest Bank (navy + gold, from the logo). */
+@theme {
+  --color-ink: #13233a;
+  --color-brand: #8b6a3e;        /* gold, deep enough for white text and links on white */
+  --color-brand-soft: #f5efe5;
+  --color-brand-bright: #d4b483; /* light gold, for accents on navy */
+  --color-night: #0f2238;        /* logo navy */
+  --color-night-2: #17304d;
+  --color-paper: #eef0f3;
+  --color-surface: #ffffff;
+  --color-canvas: #f4f5f7;
+  --color-line: #dfe3ea;
+  --color-muted: #5b6678;
+  --color-ok: #14804a;
+  --color-warn: #a15c00;
+  --color-bad: #b4232c;
+  --font-sans: "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-display: "Inter Tight", "Segoe UI", system-ui, sans-serif;
+  --font-body: "Inter", "Segoe UI", system-ui, sans-serif;
+}
+
+body {
+  background: var(--color-canvas);
+  color: var(--color-ink);
+}
+
+/* ---------- Landing page motion ---------- */
+
+.reveal {
+  opacity: 0;
+  transform: translateY(80px);
+  transition:
+    opacity 0.6s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: opacity, transform;
+}
+.reveal-scale {
+  opacity: 0;
+  transform: scale(0.8);
+  transition:
+    opacity 0.55s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.reveal.is-visible,
+.reveal-scale.is-visible {
+  opacity: 1;
+  transform: none;
+}
+
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+.marquee-track {
+  display: flex;
+  width: max-content;
+  animation: marquee var(--marquee-duration, 30s) linear infinite;
+}
+.marquee-track-reverse {
+  display: flex;
+  width: max-content;
+  animation: marquee-reverse var(--marquee-duration, 30s) linear infinite;
+}
+@keyframes marquee-reverse {
+  from { transform: translateX(-50%); }
+  to { transform: translateX(0); }
+}
+.marquee-mask {
+  mask-image: linear-gradient(to right, transparent, #000 10%, #000 90%, transparent);
+}
+
+@keyframes drift {
+  0%, 100% { transform: translate(0, 0); }
+  50% { transform: translate(12px, -18px); }
+}
+.drift { animation: drift 9s ease-in-out infinite; }
+
+@keyframes toast-in {
+  0%, 15% { opacity: 0; transform: translateY(12px) scale(0.96); }
+  25%, 85% { opacity: 1; transform: none; }
+  100% { opacity: 0; transform: translateY(-8px); }
+}
+.toast-loop { animation: toast-in 5s ease-in-out infinite; }
+
+/* Glass highlight for buttons */
+.btn-glass {
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 0 20px rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  transition: border-color 0.3s, box-shadow 0.3s;
+}
+.btn-glass:hover {
+  border-color: rgba(255, 255, 255, 0.3);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 0 30px rgba(255, 255, 255, 0.1);
+}
+.btn-glass-light {
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8), 0 2px 12px rgba(0, 0, 0, 0.08);
+  transition: border-color 0.3s, box-shadow 0.3s;
+}
+.btn-glass-light:hover {
+  border-color: rgba(0, 0, 0, 0.12);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 4px 20px rgba(0, 0, 0, 0.12);
+}
+
+/* Pill button: label rolls up and colour floods across on hover */
+.pill {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.875rem;
+  border-radius: 999px;
+  padding: 0.375rem 0.375rem 0.375rem 1.5rem;
+  font-family: var(--font-display);
+  font-weight: 500;
+  white-space: nowrap;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 0 20px rgba(255, 255, 255, 0.05);
+}
+.pill:hover {
+  border-color: rgba(255, 255, 255, 0.3);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 0 30px rgba(255, 255, 255, 0.1);
+}
+.pill.bg-white,
+.pill.bg-white:hover {
+  border-color: rgba(0, 0, 0, 0.08);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8), 0 2px 12px rgba(0, 0, 0, 0.08);
+}
+.pill.bg-white:hover {
+  border-color: rgba(0, 0, 0, 0.12);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 4px 20px rgba(0, 0, 0, 0.12);
+}
+.pill::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: var(--pill-flood, #000);
+  transform: scaleX(0);
+  transform-origin: right;
+  transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.pill:hover::before,
+.pill:focus-visible::before {
+  transform: scaleX(1);
+  transform-origin: left;
+}
+.pill-label {
+  display: block;
+  height: 1.5rem;
+  line-height: 1.5rem;
+  overflow: hidden;
+}
+.pill-label > span {
+  display: block;
+  transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.pill:hover .pill-label > span,
+.pill:focus-visible .pill-label > span {
+  transform: translateY(-100%);
+}
+.pill-badge {
+  display: grid;
+  place-items: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 999px;
+  transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.pill:hover .pill-badge,
+.pill:focus-visible .pill-badge {
+  transform: rotate(-45deg);
+}
+
+.glass {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+}
+.glass-strong {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.06));
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  backdrop-filter: blur(20px) saturate(150%);
+  -webkit-backdrop-filter: blur(20px) saturate(150%);
+}
+
+/* ---------- App motion (from the card-wallet study: design-reference/tiktok-card-ui) ---------- */
+
+/* Page entrance: each block of a dashboard page fades up in a top-to-bottom cascade. */
+@keyframes rise-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
+.page-enter > * > * {
+  animation: rise-in 0.42s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+.page-enter > * > *:nth-child(2) { animation-delay: 70ms; }
+.page-enter > * > *:nth-child(3) { animation-delay: 140ms; }
+.page-enter > * > *:nth-child(4) { animation-delay: 210ms; }
+.page-enter > * > *:nth-child(5) { animation-delay: 280ms; }
+.page-enter > * > *:nth-child(n + 6) { animation-delay: 350ms; }
+
+/* Bell wiggle when there are unread notifications. */
+@keyframes wiggle {
+  0%, 100% { transform: rotate(0); }
+  20% { transform: rotate(14deg); }
+  40% { transform: rotate(-12deg); }
+  60% { transform: rotate(8deg); }
+  80% { transform: rotate(-4deg); }
+}
+
+/* Staggered pop-in for rows inside a block (set --i on each child). */
+.stagger > * {
+  animation: rise-in 0.36s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation-delay: calc(var(--i, 0) * 60ms);
+}
+
+/* Frost that sweeps left → right across a frozen card. */
+@keyframes frost-sweep {
+  from { -webkit-mask-position: 100% 0; mask-position: 100% 0; }
+  to { -webkit-mask-position: 0 0; mask-position: 0 0; }
+}
+.frost {
+  -webkit-mask-image: linear-gradient(90deg, #000 45%, transparent 55%);
+  mask-image: linear-gradient(90deg, #000 45%, transparent 55%);
+  -webkit-mask-size: 260% 100%;
+  mask-size: 260% 100%;
+  -webkit-mask-position: 0 0;
+  mask-position: 0 0;
+  animation: frost-sweep 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.fade-in-late { animation: fade-in 0.3s ease-out 0.25s both; }
+
+/* Status pills ("Card frozen", "Limit set to …") grow out from the centre. */
+@keyframes pill-grow {
+  from { opacity: 0; transform: scaleX(0.2); }
+  to { opacity: 1; transform: none; }
+}
+.pill-grow { animation: pill-grow 0.22s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+
+/* Bottom sheet + dimmed backdrop. */
+@keyframes sheet-up {
+  from { transform: translateY(100%); }
+  to { transform: none; }
+}
+@keyframes sheet-down {
+  from { transform: none; }
+  to { transform: translateY(100%); }
+}
+@keyframes dim-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes dim-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+.sheet-open { animation: sheet-up 0.26s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+.sheet-close { animation: sheet-down 0.2s cubic-bezier(0.4, 0, 1, 1) both; }
+.dim-open { animation: dim-in 0.22s ease-out both; }
+.dim-close { animation: dim-out 0.2s ease-in both; }
+
+/* Loading skeleton shimmer. */
+@keyframes shimmer {
+  from { background-position: 150% 0; }
+  to { background-position: -50% 0; }
+}
+.skeleton {
+  border-radius: 12px;
+  background: linear-gradient(90deg, rgba(0, 0, 0, 0.05) 30%, rgba(0, 0, 0, 0.1) 50%, rgba(0, 0, 0, 0.05) 70%);
+  background-size: 300% 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+.skeleton-dark {
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.05) 30%, rgba(255, 255, 255, 0.12) 50%, rgba(255, 255, 255, 0.05) 70%);
+  background-size: 300% 100%;
+}
+
+/* Big range slider (limit sheet). */
+.range {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 6px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--color-night) var(--fill, 0%), #e4e7e5 var(--fill, 0%));
+  outline: none;
+}
+.range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  background: var(--color-night);
+  border: 4px solid #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  cursor: grab;
+}
+.range::-moz-range-thumb {
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  background: var(--color-night);
+  border: 4px solid #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  cursor: grab;
+}
+.range:active::-webkit-slider-thumb { cursor: grabbing; transform: scale(1.08); }
+
+@media (prefers-reduced-motion: no-preference) {
+  html { scroll-behavior: smooth; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal,
+  .reveal-scale {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+  .marquee-track,
+  .marquee-track-reverse,
+  .drift,
+  .toast-loop {
+    animation: none;
+  }
+  .toast-loop { opacity: 1; }
+  .page-enter > * > *,
+  .stagger > *,
+  .frost,
+  .fade-in-late,
+  .pill-grow,
+  .sheet-open,
+  .sheet-close,
+  .dim-open,
+  .dim-close,
+  .skeleton {
+    animation: none;
+  }
+}
+
+/* ---------- PIN feedback (sign in) ---------- */
+
+@keyframes pin-hop {
+  0%, 100% { transform: translateY(0); }
+  25% { transform: translateY(-14px); }
+  45% { transform: translateY(3px); }
+  65% { transform: translateY(-6px); }
+  82% { transform: translateY(1px); }
+}
+.pin-hop {
+  animation: pin-hop 0.8s cubic-bezier(0.3, 0.7, 0.4, 1) both;
+  animation-delay: calc(var(--i, 0) * 90ms);
+}
+
+@keyframes pin-shake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-9px); }
+  40%, 80% { transform: translateX(9px); }
+}
+.pin-shake { animation: pin-shake 0.45s ease-in-out; }
+
+@keyframes check-pop {
+  0% { transform: scale(0) rotate(-45deg); }
+  60% { transform: scale(1.2) rotate(0deg); }
+  100% { transform: scale(1); }
+}
+.check-pop { animation: check-pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+
+@keyframes check-draw { to { stroke-dashoffset: 0; } }
+.check-draw path {
+  stroke-dasharray: 24;
+  stroke-dashoffset: 24;
+  animation: check-draw 0.4s 0.25s ease-out forwards;
+}
+
+@keyframes check-text {
+  from { opacity: 0; transform: translateX(-8px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+.check-text { animation: check-text 0.4s 0.3s ease-out both; }
+
+/* ---------- Automatic loading state for any clicked button (see lib/busy.ts) ---------- */
+
+@keyframes busy-spin { to { transform: rotate(360deg); } }
+.busy-rel { position: relative; }
+.is-busy { pointer-events: none; cursor: progress; }
+.is-busy > * { opacity: 0; }
+.is-busy::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 1.15em;
+  height: 1.15em;
+  margin: -0.575em 0 0 -0.575em;
+  border: 2px solid var(--busy-c, currentColor);
+  border-right-color: transparent;
+  border-radius: 9999px;
+  animation: busy-spin 0.7s linear infinite;
+}
+.is-busy { color: transparent !important; } /* hides plain text; the spinner keeps the original colour */
+
+@media (prefers-reduced-motion: reduce) {
+  .pin-hop, .pin-shake, .check-pop, .check-text { animation: none; }
+  .check-draw path { animation: none; stroke-dashoffset: 0; }
+}
+/* ---------- Phones: keep everything inside the screen ---------- */
+
+/* Grid and flex children may shrink below their content (stops long text pushing cards off-screen). */
+.grid > * { min-width: 0; }
+
+/* Money never splits across lines ("+" on one line, the amount on the next). */
+.tabular-nums { white-space: nowrap; }
+
+/* Rows of filter chips: one swipeable line on phones instead of many wrapped lines. */
+@media (max-width: 639px) {
+  .chip-row {
+    flex-wrap: nowrap !important;
+    overflow-x: auto;
+    margin-left: -1rem;
+    margin-right: -1rem;
+    padding-left: 1rem;
+    padding-right: 1rem;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+  .chip-row::-webkit-scrollbar { display: none; }
+  .chip-row > * { flex-shrink: 0; }
+
+  /* Slightly tighter cards on phones. */
+  .rounded-\[22px\].p-6, .rounded-\[22px\] > .p-6, section.p-6 { padding: 1.25rem; }
+}

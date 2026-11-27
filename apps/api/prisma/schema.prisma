@@ -1,0 +1,696 @@
+// Sterling Crest Bank demo — database schema (MongoDB Atlas).
+// Money is stored as integer minor units (cents/pence). Balances change only through
+// ledger entries written inside the same database transaction as their Transaction document.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  CUSTOMER
+  ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  FROZEN
+  LOCKED
+}
+
+enum KycStatus {
+  NOT_SUBMITTED
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum Currency {
+  USD
+  EUR
+  GBP
+}
+
+enum CardKind {
+  VIRTUAL
+  PHYSICAL
+}
+
+enum CardStatus {
+  ISSUED // physical card created by the bank, not yet linked by the customer
+  ACTIVE
+  FROZEN
+  REMOVED
+}
+
+enum TxKind {
+  DEPOSIT_BANK
+  DEPOSIT_CHECK
+  DEPOSIT_CASH
+  TRANSFER_LOCAL
+  TRANSFER_INTL
+  SWAP
+  CARD_PURCHASE
+  REFUND
+  LOAN_PAYOUT
+  LOAN_REPAYMENT
+  WITHDRAWAL_BANK   // to the customer's own bank account (sent by the bank after review)
+  WITHDRAWAL_CRYPTO // to the customer's own crypto wallet address (sent by the bank after review)
+  ADJUSTMENT // manual credit/debit or reversal made by an admin
+}
+
+enum TxStatus {
+  PENDING
+  AWAITING_APPROVAL
+  COMPLETED
+  DECLINED
+  FAILED
+  REJECTED
+}
+
+enum Direction {
+  IN
+  OUT
+}
+
+/// Loan application status (same set everywhere; see packages/shared/src/loans.ts).
+enum LoanStatus {
+  DRAFT
+  SUBMITTED
+  UNDER_REVIEW
+  DOCUMENTS_REQUIRED
+  VERIFICATION
+  ASSESSMENT
+  APPROVED
+  CONDITIONALLY_APPROVED
+  REJECTED
+  OFFER_ISSUED
+  AWAITING_SIGNATURE
+  AGREEMENT_COMPLETED
+  DISBURSEMENT_PROCESSING
+  DISBURSED
+  CLOSED
+}
+
+enum ChatSender {
+  CUSTOMER
+  ADMIN
+  BOT
+}
+
+enum TaxRecoveryStatus {
+  SUBMITTED
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+  PAID
+}
+
+/// Funds Recovery Assistance case status (same set everywhere; see packages/shared/src/recovery.ts).
+enum RecoveryStatus {
+  DRAFT
+  SUBMITTED
+  UNDER_REVIEW
+  DOCUMENTS_REQUIRED
+  ASSESSMENT_COMPLETE
+  AWAITING_CUSTOMER_APPROVAL
+  RECOVERY_ACTIVE
+  AWAITING_THIRD_PARTY
+  RESOLVED
+  UNSUCCESSFUL
+  CLOSED
+}
+
+enum CaseParty {
+  CUSTOMER
+  STAFF
+}
+
+model User {
+  id           String     @id @default(auto()) @map("_id") @db.ObjectId
+  role         Role       @default(CUSTOMER)
+  name         String
+  email        String     @unique
+  phone        String?
+  passwordHash String
+  pinHash      String?
+  pinLength    Int        @default(4)
+  pinFails     Int        @default(0)
+  status       UserStatus @default(ACTIVE)
+  kycStatus    KycStatus  @default(NOT_SUBMITTED)
+  kycDocPath   String?
+  kycIdType      String?   // PASSPORT, DRIVING_LICENCE, NATIONAL_ID
+  kycSubmittedAt DateTime?
+  kycNote        String?   // reason given by staff when rejected
+  // Withdrawal hold (set by staff): new withdrawals show "Under review" with the staff note below.
+  withdrawalHold     Boolean? // null/false = no hold
+  withdrawalHoldNote String?  // shown to the customer on held withdrawals
+  withdrawalEmailSentAt DateTime? // the automatic "Update on your withdrawal" email goes out once per customer
+  resetCode      String?
+  resetCodeExp   DateTime?
+  mainCurrency Currency   @default(USD)
+  theme        String     @default("system")
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  wallets         Wallet[]
+  cards           Card[]
+  transactions    Transaction[]
+  loanApplications LoanApplication[]
+  messages        SupportMessage[]
+  notifications   Notification[]
+  auditActions    AuditLog[]        @relation("AuditActor")
+  taxRecoveries   TaxRecovery[]
+  recoveryCases   RecoveryCase[]
+  kycDocuments    KycDocument[]
+
+  @@map("users")
+}
+
+model Wallet {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId        String   @db.ObjectId
+  currency      Currency
+  balanceMinor  Int      @default(0)
+  accountNumber String   @unique
+  createdAt     DateTime @default(now())
+
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  cards         Card[]
+  transactions  Transaction[]
+  ledgerEntries LedgerEntry[]
+
+  @@unique([userId, currency])
+  @@map("wallets")
+}
+
+model Card {
+  id                String     @id @default(auto()) @map("_id") @db.ObjectId
+  userId            String     @db.ObjectId
+  walletId          String?    @db.ObjectId
+  kind              CardKind
+  label             String
+  last4             String
+  numberHash        String     @unique // SHA-256 of the full number, for lookups when linking
+  numberEncrypted   String // AES-256-GCM
+  cvvEncrypted      String // AES-256-GCM
+  expMonth          Int
+  expYear           Int
+  holderName        String
+  color             String     @default("ink")
+  monthlyLimitMinor Int?
+  status            CardStatus @default(ACTIVE)
+  linkedAt          DateTime?
+  createdAt         DateTime   @default(now())
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  wallet       Wallet?       @relation(fields: [walletId], references: [id])
+  transactions Transaction[]
+
+  @@index([userId])
+  @@map("cards")
+}
+
+model Transaction {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  reference   String    @unique
+  groupRef    String? // links the two legs of a swap
+  userId      String    @db.ObjectId
+  walletId    String    @db.ObjectId
+  cardId      String?   @db.ObjectId
+  kind        TxKind
+  direction   Direction
+  amountMinor Int
+  feeMinor    Int       @default(0)
+  currency    Currency
+  status      TxStatus
+  description String
+  reason      String? // decline / failure / rejection reason
+  meta        Json? // recipient, bank, SWIFT, merchant, check images, cash code…
+  dueAt       DateTime? // when a PENDING transaction auto-completes
+  completedAt DateTime?
+  reversedById String?  @db.ObjectId // set when an admin reversed this transaction
+  createdAt   DateTime  @default(now())
+
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  wallet        Wallet        @relation(fields: [walletId], references: [id])
+  card          Card?         @relation(fields: [cardId], references: [id])
+  ledgerEntries LedgerEntry[]
+
+  @@index([userId, createdAt])
+  @@index([status, dueAt])
+  @@map("transactions")
+}
+
+/// Double-entry ledger: every completed transaction writes entries that sum to zero.
+/// walletId is set for customer wallets; systemAccount is set for the bank's own accounts.
+model LedgerEntry {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  transactionId String   @db.ObjectId
+  walletId      String?  @db.ObjectId
+  systemAccount String? // e.g. SETTLEMENT_USD, FEES_USD, FX_USD, LOANS_USD
+  amountMinor   Int // positive = credit to that account, negative = debit
+  currency      Currency
+  createdAt     DateTime @default(now())
+
+  transaction Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  wallet      Wallet?     @relation(fields: [walletId], references: [id])
+
+  @@index([walletId])
+  @@index([systemAccount])
+  @@map("ledger_entries")
+}
+
+/// A loan application. Reference (LN-2026-000125) is given on submission.
+/// Form answers are stored per step as { fieldKey: value } (see packages/shared/src/loans.ts).
+model LoanApplication {
+  id              String     @id @default(auto()) @map("_id") @db.ObjectId
+  reference       String?    // unique once set (partial index created by prisma/indexes.js)
+  userId          String     @db.ObjectId
+  product         String     // PERSONAL, BUSINESS, EDUCATION, VEHICLE, HOME, SHORT_TERM
+  status          LoanStatus @default(DRAFT)
+  // Copied from the requirements step, for lists and reports
+  amountMinor     Int?
+  currency        String?
+  termMonths      Int?
+  requirements    Json?
+  answers         Json?
+  personal        Json?
+  employment      Json?
+  banking         Json?
+  consentAt       DateTime?
+  latestUpdate    String?    // short customer-facing update
+  // Staff only
+  assignedToId    String?    @db.ObjectId
+  assessment      Json?      // { checks: {...}, findings, recommendation, by, at }
+  lender          String?
+  forwardedAt     DateTime?
+  // Lender's decision
+  decision        String?    // APPROVED / CONDITIONALLY_APPROVED / REJECTED
+  decisionNote    String?
+  conditions      String?
+  decidedAt       DateTime?
+  // Offer and agreement
+  offer           Json?      // LoanOffer
+  offerAcceptedAt DateTime?
+  signedName      String?
+  signedAt        DateTime?
+  // Disbursement { method: WALLET | EXTERNAL, walletId?, txId?, reference?, amountMinor, currency, at }
+  disbursement    Json?
+  submittedAt     DateTime?
+  closedAt        DateTime?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  documents LoanDocument[]
+  requests  LoanDocRequest[]
+  messages  LoanMessage[]
+  events    LoanEvent[]
+  repayments LoanRepayment[]
+
+  @@index([userId])
+  @@index([status])
+  @@index([reference])
+  @@map("loan_applications")
+}
+
+/// Supporting document stored in the database (max 10 MB each). Staff mark it verified or rejected.
+model LoanDocument {
+  id            String    @id @default(auto()) @map("_id") @db.ObjectId
+  applicationId String    @db.ObjectId
+  userId        String    @db.ObjectId
+  kind          String    // checklist key (e.g. PROOF_OF_INCOME), ADDITIONAL or REQUESTED
+  requestId     String?   @db.ObjectId
+  name          String
+  mime          String
+  size          Int
+  data          Bytes
+  review        String    @default("PENDING") // PENDING / VERIFIED / REJECTED
+  reviewNote    String?
+  uploadedBy    CaseParty @default(CUSTOMER)
+  createdAt     DateTime  @default(now())
+
+  application LoanApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  @@index([applicationId])
+  @@map("loan_documents")
+}
+
+/// Staff asking the applicant for more documents or information.
+model LoanDocRequest {
+  id            String    @id @default(auto()) @map("_id") @db.ObjectId
+  applicationId String    @db.ObjectId
+  label         String
+  note          String?
+  fulfilledAt   DateTime?
+  createdAt     DateTime  @default(now())
+
+  application LoanApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  @@index([applicationId])
+  @@map("loan_doc_requests")
+}
+
+/// Messages between the applicant and their loan officer.
+model LoanMessage {
+  id            String    @id @default(auto()) @map("_id") @db.ObjectId
+  applicationId String    @db.ObjectId
+  sender        CaseParty
+  authorId      String?   @db.ObjectId
+  body          String
+  readAt        DateTime?
+  createdAt     DateTime  @default(now())
+
+  application LoanApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  @@index([applicationId, createdAt])
+  @@map("loan_messages")
+}
+
+/// Application timeline. Internal entries are staff notes, never shown to the customer.
+model LoanEvent {
+  id            String      @id @default(auto()) @map("_id") @db.ObjectId
+  applicationId String      @db.ObjectId
+  status        LoanStatus?
+  note          String?
+  internal      Boolean     @default(false)
+  actorId       String?     @db.ObjectId
+  createdAt     DateTime    @default(now())
+
+  application LoanApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  @@index([applicationId, createdAt])
+  @@map("loan_events")
+}
+
+/// One monthly instalment of a paid-out loan. Created when the loan is disbursed.
+model LoanRepayment {
+  id            String    @id @default(auto()) @map("_id") @db.ObjectId
+  applicationId String    @db.ObjectId
+  userId        String    @db.ObjectId
+  number        Int       // 1..termMonths
+  dueDate       DateTime
+  amountMinor   Int
+  currency      String
+  paidAt        DateTime?
+  method        String?   // WALLET (customer paid from their wallet) or RECORDED (staff recorded a branch/external payment)
+  reference     String?   // payment reference for recorded payments
+  txId          String?   @db.ObjectId
+  createdAt     DateTime  @default(now())
+
+  application LoanApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  @@index([applicationId, number])
+  @@index([userId])
+  @@index([dueDate])
+  @@map("loan_repayments")
+}
+
+/// Product information set by the lender (shown on product pages). Key = product key.
+model LoanProductSetting {
+  id         String   @id @map("_id")
+  available  Boolean  @default(true)
+  amountInfo String?
+  rateInfo   String?
+  termInfo   String?
+  updatedAt  DateTime @updatedAt
+
+  @@map("loan_products")
+}
+
+model SupportMessage {
+  id        String     @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String     @db.ObjectId // the customer whose thread this is
+  sender    ChatSender
+  body      String
+  readAt    DateTime?
+  createdAt DateTime   @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@map("support_messages")
+}
+
+model Notification {
+  id        String    @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String    @db.ObjectId
+  body      String
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@map("notifications")
+}
+
+model AuditLog {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  actorId   String?  @db.ObjectId
+  action    String
+  target    String?
+  detail    Json?
+  createdAt DateTime @default(now())
+
+  actor User? @relation("AuditActor", fields: [actorId], references: [id])
+
+  @@map("audit_logs")
+}
+
+/// Tax refund claim: SUBMITTED → UNDER_REVIEW → APPROVED → PAID (or REJECTED).
+model TaxRecovery {
+  id               String            @id @default(auto()) @map("_id") @db.ObjectId
+  userId           String            @db.ObjectId
+  // Personal information
+  country          String?           // ISO code, e.g. GB
+  legalName        String?
+  dateOfBirth      DateTime?
+  address          Json?             // { line1, line2, city, postcode }
+  taxIdNumber      String            // national insurance / tax ID, cleaned
+  employmentStatus String?
+  taxYear          Int               // start year (2024 = 2024/25 for April tax years)
+  // Document list: [{ type, docId, name, size, mime }]. The file bytes are in TaxDocument.
+  documents        Json?
+  documentFiles    TaxDocument[]
+  documentPaths    String[]
+  amountMinor      Int?              // older claims: customer's estimate
+  currency         Currency          @default(USD)
+  status           TaxRecoveryStatus @default(SUBMITTED)
+  description      String?
+  reviewNote       String?
+  reviewedAt       DateTime?
+  decidedAt        DateTime?
+  // Refund payment (set by an admin)
+  refundMinor      Int?
+  refundWalletId   String?           @db.ObjectId
+  refundTxId       String?           @db.ObjectId
+  paidAt           DateTime?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([status])
+  @@map("tax_recoveries")
+}
+
+/// An uploaded tax refund document, stored in the database (one per file, max 10 MB,
+/// kept out of the claim itself because MongoDB documents are limited to 16 MB).
+model TaxDocument {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  claimId   String   @db.ObjectId
+  userId    String   @db.ObjectId
+  type      String   // P60, P45, PAYSLIP, P800, PROOF_OF_ID, BANK_EVIDENCE
+  name      String   // original file name
+  mime      String
+  size      Int
+  data      Bytes
+  createdAt DateTime @default(now())
+
+  claim TaxRecovery @relation(fields: [claimId], references: [id], onDelete: Cascade)
+
+  @@unique([claimId, type])
+  @@index([userId])
+  @@map("tax_documents")
+}
+
+/// Identity verification files (stored in the database), one per type per customer.
+model KycDocument {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String   @db.ObjectId
+  type      String   // ID_FRONT, ID_BACK, PROOF_OF_ADDRESS
+  name      String
+  mime      String
+  size      Int
+  data      Bytes
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, type])
+  @@map("kyc_documents")
+}
+
+/// A Funds Recovery Assistance application / case. Reference (FR-2026-000125) is given on submission.
+model RecoveryCase {
+  id               String         @id @default(auto()) @map("_id") @db.ObjectId
+  reference        String?        // unique once set (partial index created by prisma/indexes.js)
+  userId           String         @db.ObjectId
+  category         String         // BANK_TRANSFER, PAYMENT_REFUND, INVESTMENT, CRYPTO, WITHHELD, SCAM
+  status           RecoveryStatus @default(DRAFT)
+  // Common questions
+  fullName         String?
+  country          String?
+  incidentDate     DateTime?
+  amountMinor      Int?
+  currency         String?        // any ISO code (USD, GBP, EUR, XAF, …)
+  paymentMethod    String?
+  institution      String?
+  description      String?
+  contactedProvider Boolean?
+  previousAction   String?
+  // Category-specific answers { questionKey: answer }
+  answers          Json?
+  termsAcceptedAt  DateTime?
+  latestUpdate     String?        // short customer-facing update
+  // Proposed assistance the customer must approve
+  proposal         String?
+  proposalDecision String?        // APPROVED / DECLINED
+  proposalDecidedAt DateTime?
+  outcome          String?
+  // Funds credited back to the customer's wallet on resolution (optional)
+  creditMinor      Int?
+  creditCurrency   String?
+  creditTxId       String?        @db.ObjectId
+  submittedAt      DateTime?
+  closedAt         DateTime?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  user      User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  documents RecoveryDocument[]
+  requests  RecoveryDocRequest[]
+  messages  RecoveryMessage[]
+  events    RecoveryEvent[]
+
+  @@index([userId])
+  @@index([status])
+  @@index([reference])
+  @@map("recovery_cases")
+}
+
+/// Evidence file stored in the database (max 10 MB each).
+model RecoveryDocument {
+  id         String    @id @default(auto()) @map("_id") @db.ObjectId
+  caseId     String    @db.ObjectId
+  userId     String    @db.ObjectId
+  kind       String    // checklist key (e.g. BANK_STATEMENT) or OTHER
+  requestId  String?   @db.ObjectId // answers a staff document request
+  name       String
+  mime       String
+  size       Int
+  data       Bytes
+  uploadedBy CaseParty @default(CUSTOMER)
+  createdAt  DateTime  @default(now())
+
+  case RecoveryCase @relation(fields: [caseId], references: [id], onDelete: Cascade)
+
+  @@index([caseId])
+  @@map("recovery_documents")
+}
+
+/// Staff asking the customer for more evidence.
+model RecoveryDocRequest {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  caseId      String    @db.ObjectId
+  label       String
+  note        String?
+  fulfilledAt DateTime?
+  createdAt   DateTime  @default(now())
+
+  case RecoveryCase @relation(fields: [caseId], references: [id], onDelete: Cascade)
+
+  @@index([caseId])
+  @@map("recovery_doc_requests")
+}
+
+/// Messages between the customer and their case officer.
+model RecoveryMessage {
+  id        String    @id @default(auto()) @map("_id") @db.ObjectId
+  caseId    String    @db.ObjectId
+  sender    CaseParty
+  authorId  String?   @db.ObjectId
+  body      String
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  case RecoveryCase @relation(fields: [caseId], references: [id], onDelete: Cascade)
+
+  @@index([caseId, createdAt])
+  @@map("recovery_messages")
+}
+
+/// Case timeline. Internal entries are staff notes, never shown to the customer.
+model RecoveryEvent {
+  id        String          @id @default(auto()) @map("_id") @db.ObjectId
+  caseId    String          @db.ObjectId
+  status    RecoveryStatus?
+  note      String?
+  internal  Boolean         @default(false)
+  actorId   String?         @db.ObjectId
+  createdAt DateTime        @default(now())
+
+  case RecoveryCase @relation(fields: [caseId], references: [id], onDelete: Cascade)
+
+  @@index([caseId, createdAt])
+  @@map("recovery_events")
+}
+
+/// An email sent by staff to a customer from the admin Mail page (kept as a record even if sending failed).
+model EmailMessage {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId        String   @db.ObjectId
+  toEmail       String
+  toName        String
+  category      String   // WITHDRAWAL, ACCOUNT, IDENTITY, GENERAL
+  subject       String
+  body          String
+  transactionId String?  @db.ObjectId // the withdrawal (or other transaction) the email is about
+  templateKey   String?  // automatic email type (see src/common/auto-emails.ts)
+  refId         String?  // what an automatic email was about (used to send some only once)
+  status        String   // SENT, FAILED, NOT_CONFIGURED
+  error         String?
+  notified      Boolean  @default(false) // also shown in the customer's in-app notifications
+  sentById      String?  @db.ObjectId
+  sentByName    String?
+  createdAt     DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([createdAt])
+  @@map("email_messages")
+}
+
+/// Atomic counters (e.g. "FR-2026" → last application number).
+model Counter {
+  id  String @id @map("_id")
+  seq Int    @default(0)
+
+  @@map("counters")
+}
+
+/// Holds the bank settings JSON (fees, limits, rates) under key "bank".
+model Setting {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  key       String   @unique
+  value     Json
+  updatedAt DateTime @updatedAt
+
+  @@map("settings")
+}
