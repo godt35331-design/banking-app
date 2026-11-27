@@ -1,53 +1,54 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import * as nodemailer from 'nodemailer';
-import type { Transporter } from 'nodemailer';
 import { BANK_NAME } from '@kestrel/shared';
 
 const esc = (s: string) =>
   s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 
-/**
- * Sends email through any SMTP server (Gmail app password, Brevo, Resend, Mailgun, Zoho…).
- * Configure SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS and MAIL_FROM in apps/api/.env.
- * Without them, `configured` is false and nothing is sent.
- */
 @Injectable()
 export class MailService {
   private readonly log = new Logger('Mail');
-  private transport: Transporter | null = null;
+  private readonly apiKey: string | null;
   readonly from: string;
+
   constructor(config: ConfigService) {
-    const host = config.get<string>('SMTP_HOST');
-    const port = Number(config.get<string>('SMTP_PORT') ?? 587);
-    const user = config.get<string>('SMTP_USER');
-    const pass = config.get<string>('SMTP_PASS');
-    this.from = config.get<string>('MAIL_FROM') || (user ? `${BANK_NAME} <${user}>` : '');
-    if (host && user && pass) {
-      this.transport = nodemailer.createTransport({
-        host, port,
-        secure: (config.get<string>('SMTP_SECURE') ?? (port === 465 ? 'true' : 'false')) === 'true',
-        auth: { user, pass },
-      });
-    }
+    this.apiKey = config.get<string>('RESEND_API_KEY') || config.get<string>('SMTP_PASS') || null;
+    this.from = config.get<string>('MAIL_FROM') || `${BANK_NAME} <no-reply@sterlingcrestbank.com>`;
   }
 
   get configured() {
-    return this.transport !== null && !!this.from;
+    return !!this.apiKey && !!this.from;
   }
 
-  /** Plain text body; paragraphs and line breaks are kept. Throws if sending fails. */
   async send(to: { email: string; name: string }, subject: string, body: string) {
-    if (!this.transport) throw new Error('Email is not set up (SMTP settings missing)');
-    const info = await this.transport.sendMail({
-      from: this.from,
-      to: `"${to.name.replace(/"/g, '')}" <${to.email}>`,
-      subject,
-      text: `${body}\n\n—\n${BANK_NAME}\nWe will never ask for your password, PIN or full card number by email.`,
-      html: this.html(subject, body),
+    if (!this.apiKey) throw new Error('Email is not set up (RESEND_API_KEY or SMTP_PASS missing)');
+
+    const textBody = `${body}\n\n—\n${BANK_NAME}\nWe will never ask for your password, PIN or full card number by email.`;
+
+    const res = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${this.apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from: this.from,
+        to: [`${to.name} <${to.email}>`],
+        subject,
+        text: textBody,
+        html: this.html(subject, body),
+      }),
     });
-    this.log.log(`Sent "${subject}" to ${to.email} (${info.messageId})`);
-    return info.messageId as string;
+
+    if (!res.ok) {
+      const err = await res.text();
+      this.log.error(`Resend API error: ${res.status} ${err}`);
+      throw new Error(`Email failed: ${res.status}`);
+    }
+
+    const data = await res.json();
+    this.log.log(`Sent "${subject}" to ${to.email} (${data.id})`);
+    return data.id as string;
   }
 
   private html(subject: string, body: string) {
