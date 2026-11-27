@@ -15,7 +15,7 @@ export class MailService {
   constructor(config: ConfigService) {
     this.apiKey = config.get<string>('RESEND_API_KEY') || config.get<string>('SMTP_PASS') || null;
     this.from = config.get<string>('MAIL_FROM') || `${BANK_NAME} <no-reply@sterlingcrestbank.com>`;
-    const webOrigin = config.get<string>('WEB_ORIGIN') || 'http://localhost:5173';
+    const webOrigin = (config.get<string>('WEB_ORIGIN') || 'http://localhost:5173').split(',')[0].trim();
     this.logoUrl = `${webOrigin}/logo-light.png`;
   }
 
