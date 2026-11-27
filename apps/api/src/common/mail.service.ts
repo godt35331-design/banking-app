@@ -1,7 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { existsSync } from 'fs';
-import { resolve } from 'path';
 import * as nodemailer from 'nodemailer';
 import type { Transporter } from 'nodemailer';
 import { BANK_NAME } from '@kestrel/shared';
@@ -19,19 +17,7 @@ export class MailService {
   private readonly log = new Logger('Mail');
   private transport: Transporter | null = null;
   readonly from: string;
-  /** The bank logo, embedded in every email (so it shows without hosting it anywhere). */
-  private readonly logoPath: string | null;
-
   constructor(config: ConfigService) {
-    const candidates = [
-      config.get<string>('MAIL_LOGO_PATH'),
-      resolve(__dirname, '../../../web/public/logo-light.png'), // apps/api/dist/common → apps/web/public
-      resolve(process.cwd(), '../web/public/logo-light.png'),
-      resolve(process.cwd(), 'apps/web/public/logo-light.png'),
-    ].filter((p): p is string => !!p);
-    this.logoPath = candidates.find(p => existsSync(p)) ?? null;
-    if (!this.logoPath) this.log.warn('Logo not found; emails will show the bank name instead');
-
     const host = config.get<string>('SMTP_HOST');
     const port = Number(config.get<string>('SMTP_PORT') ?? 587);
     const user = config.get<string>('SMTP_USER');
@@ -59,7 +45,6 @@ export class MailService {
       subject,
       text: `${body}\n\n—\n${BANK_NAME}\nWe will never ask for your password, PIN or full card number by email.`,
       html: this.html(subject, body),
-      attachments: this.logoPath ? [{ filename: 'logo.png', path: this.logoPath, cid: 'bank-logo' }] : [],
     });
     this.log.log(`Sent "${subject}" to ${to.email} (${info.messageId})`);
     return info.messageId as string;
@@ -73,11 +58,7 @@ export class MailService {
     return `<!doctype html><html><body style="margin:0;background:#f4f1ec;font-family:Arial,Helvetica,sans-serif;color:#1d1d1f">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f1ec;padding:24px 12px"><tr><td align="center">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border-radius:18px;overflow:hidden">
-<tr><td align="center" style="background:#14161a;color:#ffffff;padding:22px 28px;font-size:17px;font-weight:bold">${
-      this.logoPath
-        ? `<img src="cid:bank-logo" alt="${esc(BANK_NAME)}" height="84" style="display:block;height:84px;width:auto;border:0;outline:none">`
-        : esc(BANK_NAME)
-    }</td></tr>
+<tr><td align="center" style="background:#14161a;color:#ffffff;padding:22px 28px;font-size:17px;font-weight:bold">${esc(BANK_NAME)}</td></tr>
 <tr><td style="padding:28px 28px 8px"><h1 style="margin:0 0 18px;font-size:20px">${esc(subject)}</h1>${paragraphs}</td></tr>
 <tr><td style="padding:8px 28px 24px;font-size:12px;color:#77736d;border-top:1px solid #eee">
 You're getting this email because you have an account with ${esc(BANK_NAME)}.<br>

@@ -16,4 +16,8 @@ export class ResetPasswordDto {
   @MinLength(8, { message: 'Password must be at least 8 characters' })
   @MaxLength(128)
   password: string;
+
+  @IsString()
+  @Matches(/^\d{4,6}$/, { message: 'PIN must be 4–6 digits' })
+  pin: string;
 }

@@ -146,9 +146,10 @@ export class AuthService {
     }
 
     const passwordHash = await argon2.hash(dto.password);
+    const pinHash = await argon2.hash(dto.pin);
     await this.prisma.user.update({
       where: { id: user.id },
-      data: { passwordHash, resetCode: null, resetCodeExp: null },
+      data: { passwordHash, pinHash, pinLength: dto.pin.length, pinFails: 0, resetCode: null, resetCodeExp: null },
     });
 
     if (this.mail.configured) {

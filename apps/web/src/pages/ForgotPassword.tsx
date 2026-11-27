@@ -14,6 +14,7 @@ export function ForgotPassword() {
   const [code, setCode] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
+  const [pin, setPin] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -46,10 +47,11 @@ export function ForgotPassword() {
     e.preventDefault();
     if (password.length < 8) return setError('Password must be at least 8 characters');
     if (password !== confirm) return setError('Passwords do not match');
+    if (!/^\d{4,6}$/.test(pin)) return setError('PIN must be 4–6 digits');
     setError('');
     setLoading(true);
     try {
-      await api.post('/auth/reset-password', { email, code, password });
+      await api.post('/auth/reset-password', { email, code, password, pin });
       setStep('done');
     } catch (err: any) {
       setError(err.message ?? 'Something went wrong');
@@ -139,12 +141,21 @@ export function ForgotPassword() {
         <>
           <span className="grid h-14 w-14 place-items-center rounded-2xl bg-brand-soft text-brand"><ShieldCheck size={24} /></span>
           <div className="mt-6">
-            <AuthHeading title="Create a new password" subtitle="Choose a strong password for your account." />
+            <AuthHeading title="Create new credentials" subtitle="Choose a strong password and a new PIN for your account." />
           </div>
           <FormError message={error} />
           <form onSubmit={handlePassword} className="mt-8 space-y-5">
             <Field label="New password" password autoComplete="new-password" value={password} onChange={e => setPassword(e.target.value)} placeholder="At least 8 characters" autoFocus />
             <Field label="Confirm password" password autoComplete="new-password" value={confirm} onChange={e => setConfirm(e.target.value)} placeholder="Re-enter your password" />
+            <Field
+              label="New PIN"
+              type="text"
+              inputMode="numeric"
+              autoComplete="off"
+              value={pin}
+              onChange={e => setPin(e.target.value.replace(/\D/g, '').slice(0, 6))}
+              placeholder="4–6 digit PIN"
+            />
             <div className="pt-2">
               <PillButton full disabled={loading}>
                 {loading ? 'Resetting…' : 'Reset password'}
