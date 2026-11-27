@@ -7,6 +7,7 @@ import {
 } from '@kestrel/shared';
 import { PrismaService } from '../prisma/prisma.service';
 import { AutoMailService } from '../common/auto-mail.service';
+import { withTxRetry } from '../common/tx-retry';
 import { looksLike, type UploadedDoc } from '../common/uploads';
 
 type Actor = { sub: string };
@@ -423,7 +424,7 @@ export class RecoveryService {
     data.latestUpdate = note || (status === 'DOCUMENTS_REQUIRED' ? 'Please upload the documents we have requested.' : `${meaning}.`);
 
     let creditText = '';
-    await this.prisma.$transaction(async db => {
+    await withTxRetry(this.prisma, async db => {
       if (requests.length) {
         await db.recoveryDocRequest.createMany({ data: requests.map(r => ({ caseId: id, label: r.label!, note: r.note || null })) });
       }

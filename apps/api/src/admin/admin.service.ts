@@ -5,6 +5,7 @@ import { DEFAULT_SETTINGS, destinationLabel, formatMoney, type BankSettings, typ
 import { PrismaService } from '../prisma/prisma.service';
 import { AutoMailService } from '../common/auto-mail.service';
 import { emailDate } from '../common/auto-emails';
+import { withTxRetry } from '../common/tx-retry';
 
 type Actor = { sub: string };
 const ref = (prefix: string) => `${prefix}-${Date.now()}-${randomBytes(3).toString('hex').toUpperCase()}`;
@@ -300,7 +301,7 @@ export class AdminService {
     const wallet = await this.prisma.wallet.findFirst({ where: { id: dto.walletId, userId } });
     if (!wallet) throw new NotFoundException('Wallet not found');
 
-    const tx = await this.prisma.$transaction(async db => {
+    const tx = await withTxRetry(this.prisma, async db => {
       if (dto.direction === 'OUT') {
         const ok = await db.wallet.updateMany({
           where: { id: wallet.id, balanceMinor: { gte: dto.amountMinor } },
@@ -373,7 +374,7 @@ export class AdminService {
       throw new BadRequestException(tx.kind === 'WITHDRAWAL_CRYPTO' ? 'Enter the transaction hash (TXID) of the crypto you sent' : 'Enter the bank payment reference');
     }
 
-    await this.prisma.$transaction(async db => {
+    await withTxRetry(this.prisma, async db => {
       const marked = await db.transaction.updateMany({
         where: { id, status: 'AWAITING_APPROVAL' },
         data: approve
@@ -415,7 +416,7 @@ export class AdminService {
     const tx = await this.prisma.transaction.findUnique({ where: { id } });
     if (!tx || tx.kind !== 'DEPOSIT_CHECK' || tx.status !== 'PENDING') throw new NotFoundException('Check deposit not found or already decided');
 
-    await this.prisma.$transaction(async db => {
+    await withTxRetry(this.prisma, async db => {
       const marked = await db.transaction.updateMany({
         where: { id, status: 'PENDING' },
         data: clear
@@ -479,7 +480,7 @@ export class AdminService {
     if (tx.kind === 'SWAP') throw new BadRequestException('Swaps have two sides. Use manual credits/debits instead.');
 
     const back = tx.direction === 'OUT' ? tx.amountMinor + tx.feeMinor : tx.amountMinor;
-    const reversal = await this.prisma.$transaction(async db => {
+    const reversal = await withTxRetry(this.prisma, async db => {
       if (tx.direction === 'IN') {
         const ok = await db.wallet.updateMany({
           where: { id: tx.walletId, balanceMinor: { gte: back } },

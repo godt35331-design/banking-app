@@ -3,6 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateTransferDto } from './dto/transfer.dto';
 import { randomBytes } from 'crypto';
 import { checkLimits } from '../common/limits';
+import { withTxRetry } from '../common/tx-retry';
 
 @Injectable()
 export class TransfersService {
@@ -26,8 +27,14 @@ export class TransfersService {
 
     const needsApproval = dto.amountMinor >= ((settings?.value as any)?.approvalThresholdMinorUSD ?? 300_000);
 
-    const [tx] = await this.prisma.$transaction([
-      this.prisma.transaction.create({
+    return withTxRetry(this.prisma, async db => {
+      const debited = await db.wallet.updateMany({
+        where: { id: wallet.id, balanceMinor: { gte: totalMinor } },
+        data: { balanceMinor: { decrement: totalMinor } },
+      });
+      if (debited.count === 0) throw new BadRequestException('Insufficient balance (including fees)');
+
+      return db.transaction.create({
         data: {
           reference: ref,
           userId,
@@ -47,14 +54,8 @@ export class TransfersService {
             swiftCode: dto.swiftCode,
           },
         },
-      }),
-      this.prisma.wallet.update({
-        where: { id: wallet.id },
-        data: { balanceMinor: { decrement: totalMinor } },
-      }),
-    ]);
-
-    return tx;
+      });
+    });
   }
 
   async list(userId: string) {

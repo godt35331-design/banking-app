@@ -6,6 +6,7 @@ import {
 } from '@kestrel/shared';
 import { PrismaService } from '../prisma/prisma.service';
 import { AutoMailService } from '../common/auto-mail.service';
+import { withTxRetry } from '../common/tx-retry';
 import { looksLike, type UploadedDoc } from '../common/uploads';
 import { CreateTaxRecoveryDto, PayTaxRefundDto, ReviewTaxRecoveryDto } from './dto/create-tax-recovery.dto';
 
@@ -189,7 +190,7 @@ export class TaxRecoveryService {
     const ref = `TAX-${Date.now()}-${randomBytes(3).toString('hex').toUpperCase()}`;
     const now = new Date();
 
-    const result = await this.prisma.$transaction(async tx => {
+    const result = await withTxRetry(this.prisma, async tx => {
       // Guard against paying twice (two admins clicking at once).
       const marked = await tx.taxRecovery.updateMany({
         where: { id, status: 'APPROVED' },

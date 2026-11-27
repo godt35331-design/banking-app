@@ -3,6 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateSwapDto } from './dto/swap.dto';
 import { randomBytes } from 'crypto';
 import { generateAccountNumber } from '../common/card-crypto';
+import { withTxRetry } from '../common/tx-retry';
 
 @Injectable()
 export class SwapService {
@@ -28,33 +29,29 @@ export class SwapService {
     if (fromWallet.currency === dto.toCurrency) throw new BadRequestException('Cannot swap to the same currency');
     if (fromWallet.balanceMinor < dto.amountMinor) throw new BadRequestException('Insufficient balance');
 
-    let toWallet = await this.prisma.wallet.findFirst({ where: { userId, currency: dto.toCurrency } });
-    if (!toWallet) {
-      toWallet = await this.prisma.wallet.create({
-        data: { userId, currency: dto.toCurrency, accountNumber: generateAccountNumber() },
-      });
-    }
+    // upsert, so two parallel swaps into a new currency don't both try to create the wallet
+    const toWallet = await this.prisma.wallet.upsert({
+      where: { userId_currency: { userId, currency: dto.toCurrency } },
+      create: { userId, currency: dto.toCurrency, accountNumber: generateAccountNumber() },
+      update: {},
+    });
 
     const quote = await this.getQuote(fromWallet.currency, dto.toCurrency, dto.amountMinor);
     const groupRef = `SWP-${Date.now()}-${randomBytes(3).toString('hex').toUpperCase()}`;
 
-    const [outTx] = await this.prisma.$transaction([
-      this.prisma.transaction.create({
-        data: {
-          reference: `${groupRef}-OUT`,
-          groupRef,
-          userId,
-          walletId: fromWallet.id,
-          kind: 'SWAP',
-          direction: 'OUT',
-          amountMinor: dto.amountMinor,
-          currency: fromWallet.currency,
-          status: 'COMPLETED',
-          description: `Swap ${fromWallet.currency} → ${dto.toCurrency}`,
-          completedAt: new Date(),
-        },
-      }),
-      this.prisma.transaction.create({
+    const outTx = await withTxRetry(this.prisma, async db => {
+      const debited = await db.wallet.updateMany({
+        where: { id: fromWallet.id, balanceMinor: { gte: dto.amountMinor } },
+        data: { balanceMinor: { decrement: dto.amountMinor } },
+      });
+      if (debited.count === 0) throw new BadRequestException('Insufficient balance');
+
+      await db.wallet.update({
+        where: { id: toWallet.id },
+        data: { balanceMinor: { increment: quote.toAmountMinor } },
+      });
+
+      await db.transaction.create({
         data: {
           reference: `${groupRef}-IN`,
           groupRef,
@@ -68,16 +65,24 @@ export class SwapService {
           description: `Swap ${fromWallet.currency} → ${dto.toCurrency}`,
           completedAt: new Date(),
         },
-      }),
-      this.prisma.wallet.update({
-        where: { id: fromWallet.id },
-        data: { balanceMinor: { decrement: dto.amountMinor } },
-      }),
-      this.prisma.wallet.update({
-        where: { id: toWallet.id },
-        data: { balanceMinor: { increment: quote.toAmountMinor } },
-      }),
-    ]);
+      });
+
+      return db.transaction.create({
+        data: {
+          reference: `${groupRef}-OUT`,
+          groupRef,
+          userId,
+          walletId: fromWallet.id,
+          kind: 'SWAP',
+          direction: 'OUT',
+          amountMinor: dto.amountMinor,
+          currency: fromWallet.currency,
+          status: 'COMPLETED',
+          description: `Swap ${fromWallet.currency} → ${dto.toCurrency}`,
+          completedAt: new Date(),
+        },
+      });
+    });
 
     return { ...outTx, quote };
   }

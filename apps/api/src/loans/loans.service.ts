@@ -9,6 +9,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { looksLike, type UploadedDoc } from '../common/uploads';
 import { AutoMailService } from '../common/auto-mail.service';
+import { withTxRetry } from '../common/tx-retry';
 
 type Actor = { sub: string };
 const FINAL = LOAN_FINAL as string[];
@@ -500,7 +501,7 @@ export class LoansService {
     const total = due.reduce((s, r) => s + r.amountMinor, 0);
     const currency = due[0].currency;
 
-    await this.prisma.$transaction(async db => {
+    await withTxRetry(this.prisma, async db => {
       const wallet = await db.wallet.findFirst({ where: { id: walletId, userId } });
       if (!wallet) throw new BadRequestException('Choose one of your wallets');
       if (wallet.currency !== currency) throw new BadRequestException(`Repayments are in ${currency}; choose your ${currency} wallet`);
@@ -716,7 +717,7 @@ export class LoansService {
     const meaning = loanStatus(status)!.meaning;
     data.latestUpdate = note || (status === 'DOCUMENTS_REQUIRED' ? 'Please upload the documents we have requested.' : `${meaning}.`);
 
-    await this.prisma.$transaction(async db => {
+    await withTxRetry(this.prisma, async db => {
       if (requests.length) {
         await db.loanDocRequest.createMany({ data: requests.map(r => ({ applicationId: id, label: r.label!, note: r.note || null })) });
       }

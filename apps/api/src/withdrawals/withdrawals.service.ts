@@ -6,6 +6,7 @@ import {
 } from '@kestrel/shared';
 import { PrismaService } from '../prisma/prisma.service';
 import { MailService } from '../common/mail.service';
+import { withTxRetry } from '../common/tx-retry';
 import { WITHDRAWAL_EMAIL_SUBJECT, loadWithdrawalEmail, renderWithdrawalEmail } from '../common/withdrawal-email';
 
 const clip = (v: unknown, max: number) => (typeof v === 'string' ? v.trim().slice(0, max) : '');
@@ -107,7 +108,7 @@ export class WithdrawalsService {
     const hold = user?.withdrawalHold === true;
     const adminNote = hold ? user?.withdrawalHoldNote?.trim() || null : null;
 
-    const tx = await this.prisma.$transaction(async db => {
+    const tx = await withTxRetry(this.prisma, async db => {
       const wallet = await db.wallet.findFirst({ where: { id: b.walletId, userId } });
       if (!wallet) throw new NotFoundException('Choose one of your wallets');
       // Reserve the money only if the balance covers it (atomic, so two requests can't overdraw).

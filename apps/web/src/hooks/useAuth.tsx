@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { api, ApiError, setToken, getToken } from '../lib/api';
 
 interface User {
@@ -28,6 +29,7 @@ const AuthContext = createContext<AuthCtx>(null!);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const qc = useQueryClient();
 
   const refresh = useCallback(async () => {
     // Retry while the server wakes up; only a 401 from the server means the sign-in is really gone.
@@ -55,6 +57,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = async (email: string, password: string, pin: string) => {
     const res = await api.post<User & { token?: string }>('/auth/login', { email, password, pin });
+    qc.clear();
     if (res.token) setToken(res.token);
     const { token: _, ...u } = res as any;
     setUser(u);
@@ -62,6 +65,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const register = async (data: { name: string; email: string; password: string; pin: string; phone?: string }) => {
     const res = await api.post<User & { token?: string }>('/auth/register', data);
+    qc.clear();
     if (res.token) setToken(res.token);
     const { token: _, ...u } = res as any;
     setUser(u);
@@ -71,6 +75,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await api.post('/auth/logout').catch(() => {});
     setToken(null);
     setUser(null);
+    qc.clear();
   };
 
   return (
