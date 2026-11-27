@@ -4,7 +4,7 @@ import type { ReactNode } from 'react';
 import {
   Globe2, Clock, Lock, Snowflake, Eye, Trash2,
   ArrowRight, ArrowDownUp, UserCheck, Wallet,
-  KeyRound, Timer, Headphones, CheckCircle2, Send,
+  KeyRound, Timer, Headphones, CheckCircle2, Send, Star, Quote,
 } from 'lucide-react';
 import { BANK_NAME } from '@kestrel/shared';
 import { CountUp, Eyebrow, Marquee, PillLink, Reveal } from '../components/landing/motion';
@@ -34,6 +34,7 @@ export function Landing() {
         <Services />
         <Tracking />
         <Security />
+        <Reviews />
         <PartnerLogos />
         <HowItWorks />
         <Footer />
@@ -667,7 +668,98 @@ function Security() {
   );
 }
 
-/* ---------- 10. Partner logos ---------- */
+/* ---------- 10. Reviews ---------- */
+
+const REVIEWS = [
+  {
+    name: 'Amara Osei',
+    role: 'Business Owner',
+    location: 'Accra, Ghana',
+    text: "I used to spend half my morning at the branch just to send a wire transfer. Now I do it from my phone in two minutes. The fees are clear before I confirm — no surprises.",
+    rating: 5,
+  },
+  {
+    name: 'James Thornton',
+    role: 'Freelance Developer',
+    location: 'London, UK',
+    text: "Having USD, EUR and GBP wallets in one place is exactly what I needed. Currency swaps are instant and the rate is always fair. This is how banking should work.",
+    rating: 5,
+  },
+  {
+    name: 'Fatima Al-Rashid',
+    role: 'Import/Export Manager',
+    location: 'Dubai, UAE',
+    text: "The fund recovery team got my money back after a failed international transfer. I could follow every step online instead of calling the branch five times a day.",
+    rating: 5,
+  },
+  {
+    name: 'Carlos Mendez',
+    role: 'Restaurant Owner',
+    location: 'Madrid, Spain',
+    text: "I was nervous about banking online, but the PIN security and instant card freeze gave me confidence. I froze my card once when I lost my phone — took two seconds.",
+    rating: 5,
+  },
+  {
+    name: 'Sarah Chen',
+    role: 'Marketing Director',
+    location: 'Singapore',
+    text: "Applied for a business loan on a Sunday evening and had a decision by Monday afternoon. The whole process was transparent — I could see exactly where my application was.",
+    rating: 5,
+  },
+  {
+    name: 'David Kimani',
+    role: 'University Lecturer',
+    location: 'Nairobi, Kenya',
+    text: "Tax recovery used to mean weeks of paperwork. I uploaded my documents, submitted the claim, and tracked it online. The refund landed in my wallet without a single branch visit.",
+    rating: 4,
+  },
+];
+
+function ReviewCard({ review, delay = 0 }: { review: typeof REVIEWS[0]; delay?: number }) {
+  return (
+    <Reveal delay={delay}>
+      <div className="group h-full rounded-[24px] bg-white p-6 shadow-[0_4px_24px_-8px_rgba(8,19,15,0.08)] transition-shadow hover:shadow-[0_20px_50px_-20px_rgba(8,19,15,0.2)] sm:p-8">
+        <div className="flex items-center gap-1">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <Star key={i} size={16} className={i < review.rating ? 'fill-brand text-brand' : 'fill-night/10 text-night/10'} />
+          ))}
+        </div>
+        <div className="relative mt-5">
+          <Quote size={28} className="absolute -left-1 -top-1 text-brand/10" />
+          <p className="relative text-sm leading-relaxed text-night/75">{review.text}</p>
+        </div>
+        <div className="mt-6 flex items-center gap-3 border-t border-night/5 pt-5">
+          <span className="grid h-10 w-10 place-items-center rounded-full bg-brand-soft font-display text-sm font-semibold text-brand">
+            {review.name.split(' ').map(n => n[0]).join('')}
+          </span>
+          <div>
+            <div className="text-sm font-medium">{review.name}</div>
+            <div className="text-xs text-muted">{review.role} · {review.location}</div>
+          </div>
+        </div>
+      </div>
+    </Reveal>
+  );
+}
+
+function Reviews() {
+  return (
+    <Panel className="bg-paper">
+      <SectionHead
+        eyebrow="Reviews"
+        title={<>What our customers<br className="hidden sm:block" /> have to say.</>}
+        desc="Real stories from people who made the switch to online banking."
+      />
+      <div className="mt-14 grid gap-4 sm:gap-5 md:grid-cols-2 lg:grid-cols-3">
+        {REVIEWS.map((r, i) => (
+          <ReviewCard key={r.name} review={r} delay={i * 60} />
+        ))}
+      </div>
+    </Panel>
+  );
+}
+
+/* ---------- 11. Partner logos ---------- */
 
 const PARTNERS = [
   'SWIFT', 'Visa', 'Mastercard', 'PayPal', 'Stripe',
