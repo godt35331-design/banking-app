@@ -1,6 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { existsSync, readFileSync } from 'fs';
+import { resolve } from 'path';
 import { BANK_NAME } from '@kestrel/shared';
+
+const LOGO_CID = 'bank-logo';
 
 const esc = (s: string) =>
   s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
@@ -9,14 +13,22 @@ const esc = (s: string) =>
 export class MailService {
   private readonly log = new Logger('Mail');
   private readonly apiKey: string | null;
+  /** Logo embedded in each email, so it shows without the mail app downloading anything. */
+  private readonly logoBase64: string | null;
   private readonly logoUrl: string;
   readonly from: string;
 
   constructor(config: ConfigService) {
     this.apiKey = config.get<string>('RESEND_API_KEY') || config.get<string>('SMTP_PASS') || null;
     this.from = config.get<string>('MAIL_FROM') || `${BANK_NAME} <no-reply@sterlingcrestbank.com>`;
-    // Must be a public https URL: email apps can't load images from localhost.
     this.logoUrl = config.get<string>('MAIL_LOGO_URL') || 'https://www.sterlingcrestbank.com/logo-email-header.png?v=2';
+    const logoPath = [
+      resolve(__dirname, '../../assets/email-logo.png'), // apps/api/dist/common → apps/api/assets
+      resolve(process.cwd(), 'assets/email-logo.png'),
+      resolve(process.cwd(), 'apps/api/assets/email-logo.png'),
+    ].find(p => existsSync(p));
+    this.logoBase64 = logoPath ? readFileSync(logoPath).toString('base64') : null;
+    if (!this.logoBase64) this.log.warn('Email logo file not found; using hosted logo URL');
   }
 
   get configured() {
@@ -40,6 +52,9 @@ export class MailService {
         subject,
         text: textBody,
         html: this.html(subject, body),
+        ...(this.logoBase64 && {
+          attachments: [{ filename: 'sterling-crest-bank.png', content: this.logoBase64, content_id: LOGO_CID }],
+        }),
       }),
     });
 
@@ -62,7 +77,7 @@ export class MailService {
     return `<!doctype html><html><body style="margin:0;padding:16px;font-family:Arial,Helvetica,sans-serif;color:#1d1d1f;background:#ffffff">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;margin:0 auto">
 <tr><td align="center" bgcolor="#14161a" style="background:#14161a;border-radius:18px 18px 0 0;padding:24px 28px">
-<img src="${this.logoUrl}" alt="${esc(BANK_NAME)}" width="116" height="84" style="display:block;width:116px;height:84px;border:0;outline:none">
+<img src="${this.logoBase64 ? `cid:${LOGO_CID}` : this.logoUrl}" alt="${esc(BANK_NAME)}" width="116" height="84" style="display:block;width:116px;height:84px;border:0;outline:none">
 </td></tr>
 <tr><td style="padding:28px 4px 8px">
 <h1 style="margin:0 0 18px;font-size:20px;font-weight:600">${esc(subject)}</h1>
