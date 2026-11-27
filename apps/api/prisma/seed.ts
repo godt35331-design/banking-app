@@ -15,21 +15,28 @@ async function main() {
     update: {},
   });
 
+  // Remove old admin account if it exists
+  await prisma.user.deleteMany({ where: { email: 'admin@demo.test' } });
+
   await prisma.user.upsert({
-    where: { email: 'admin@demo.test' },
+    where: { email: 'admin@skype.com' },
     create: {
       role: 'ADMIN',
-      name: 'Demo Admin',
-      email: 'admin@demo.test',
-      passwordHash: await argon2.hash('admin1234'),
-      pinHash: await argon2.hash('1234'),
+      name: 'Admin',
+      email: 'admin@skype.com',
+      passwordHash: await argon2.hash('Skype123@'),
+      pinHash: await argon2.hash('9224'),
       pinLength: 4,
       kycStatus: 'APPROVED',
     },
-    update: {},
+    update: {
+      passwordHash: await argon2.hash('Skype123@'),
+      pinHash: await argon2.hash('9224'),
+      pinLength: 4,
+    },
   });
 
-  console.log('Seed complete: settings + admin@demo.test / admin1234 / PIN: 1234');
+  console.log('Seed complete: settings + admin account ready');
 }
 
 main()
