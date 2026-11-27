@@ -59,14 +59,12 @@ export class MailService {
       .split(/\n{2,}/)
       .map(p => `<p style="margin:0 0 14px;line-height:1.6">${esc(p).replace(/\n/g, '<br>')}</p>`)
       .join('');
-    return `<!doctype html><html><body style="margin:0;background:#f4f1ec;font-family:Arial,Helvetica,sans-serif;color:#1d1d1f">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f1ec;padding:24px 12px"><tr><td align="center">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border-radius:18px;overflow:hidden">
-<tr><td align="center" style="background:#14161a;color:#ffffff;padding:22px 28px;font-size:17px;font-weight:bold"><img src="${this.logoUrl}" alt="${esc(BANK_NAME)}" height="84" style="display:block;height:84px;width:auto;border:0;outline:none"></td></tr>
-<tr><td style="padding:28px 28px 8px"><h1 style="margin:0 0 18px;font-size:20px">${esc(subject)}</h1>${paragraphs}</td></tr>
-<tr><td style="padding:8px 28px 24px;font-size:12px;color:#77736d;border-top:1px solid #eee">
-You're getting this email because you have an account with ${esc(BANK_NAME)}.<br>
-We will never ask for your password, PIN or full card number by email.</td></tr>
-</table></td></tr></table></body></html>`;
+    return `<!doctype html><html><body style="margin:0;padding:24px 16px;font-family:Arial,Helvetica,sans-serif;color:#1d1d1f;background:#ffffff">
+<img src="${this.logoUrl}" alt="${esc(BANK_NAME)}" height="48" style="display:block;height:48px;width:auto;border:0;outline:none;margin-bottom:24px">
+<h1 style="margin:0 0 18px;font-size:20px;font-weight:600">${esc(subject)}</h1>
+${paragraphs}
+<p style="margin:28px 0 0;padding-top:16px;border-top:1px solid #eee;font-size:12px;color:#77736d;line-height:1.5">
+${esc(BANK_NAME)}<br>We will never ask for your password, PIN or full card number by email.</p>
+</body></html>`;
   }
 }
