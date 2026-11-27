@@ -531,12 +531,12 @@ export function StatusSteps({ steps, current, dark = false }: { steps: string[];
                   ? 'bg-brand-bright text-night'
                   : active
                     ? dark ? 'bg-white/15 text-white ring-2 ring-brand-bright' : 'bg-brand-soft text-brand ring-2 ring-brand'
-                    : dark ? 'bg-white/10 text-white/40' : 'bg-paper text-muted'
+                    : dark ? 'bg-white/10 text-white/70' : 'bg-paper text-muted'
               }`}
             >
               {done ? <CheckCircle2 size={14} /> : <span className="text-[10px] font-semibold">{i + 1}</span>}
             </span>
-            <span className={done || active ? (dark ? 'text-white' : 'text-night') : dark ? 'text-white/45' : 'text-muted'}>
+            <span className={done || active ? (dark ? 'text-white' : 'text-night') : dark ? 'text-white/70' : 'text-muted'}>
               {s}
               {active && <span className={`ml-2 text-xs ${dark ? 'text-brand-bright' : 'text-brand'}`}>In progress</span>}
             </span>

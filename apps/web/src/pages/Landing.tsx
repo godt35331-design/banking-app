@@ -1,10 +1,10 @@
 import { Link } from 'react-router';
 import { BrandMark } from '../components/AuthShell';
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import {
   Globe2, Clock, Lock, Snowflake, Eye, Trash2,
   ArrowRight, ArrowDownUp, UserCheck, Wallet,
-  KeyRound, Timer, Headphones, CheckCircle2, Send, Star, Quote,
+  KeyRound, Timer, Headphones, CheckCircle2, Send, Star, Quote, Menu, X, Mail,
 } from 'lucide-react';
 import { BANK_NAME } from '@kestrel/shared';
 import { CountUp, Eyebrow, Marquee, PillLink, Reveal } from '../components/landing/motion';
@@ -24,7 +24,7 @@ const NAV = [
 export function Landing() {
   return (
     <div className="min-h-screen bg-paper font-body text-night antialiased">
-      <div className="flex flex-col">
+      <main className="flex flex-col">
         <Hero />
         <TrustStrip />
         <WhyUs />
@@ -37,8 +37,8 @@ export function Landing() {
         <Reviews />
         <PartnerLogos />
         <HowItWorks />
-        <Footer />
-      </div>
+      </main>
+      <Footer />
     </div>
   );
 }
@@ -98,6 +98,7 @@ function Panel({ children, id, className = '' }: { children: ReactNode; id?: str
 /* ---------- 1. Hero ---------- */
 
 function Hero() {
+  const [menuOpen, setMenuOpen] = useState(false);
   return (
     <section className="relative overflow-hidden bg-night px-5 pb-14 pt-5 sm:px-10 sm:pb-20">
       <Glow className="-right-40 -top-40 h-[620px] w-[620px]" />
@@ -122,8 +123,31 @@ function Hero() {
           >
             Open account
           </Link>
+          <button
+            type="button"
+            onClick={() => setMenuOpen(o => !o)}
+            aria-expanded={menuOpen}
+            aria-controls="mobile-menu"
+            aria-label={menuOpen ? 'Close menu' : 'Open menu'}
+            className="btn-glass grid h-11 w-11 place-items-center rounded-full text-white md:hidden"
+          >
+            {menuOpen ? <X size={20} /> : <Menu size={20} />}
+          </button>
         </div>
       </header>
+
+      {menuOpen && (
+        <nav id="mobile-menu" aria-label="Mobile" className="glass-strong relative z-20 mx-auto mt-2 max-w-6xl rounded-2xl p-2 md:hidden">
+          {NAV.map(n => (
+            <a key={n.href} href={n.href} onClick={() => setMenuOpen(false)} className="block rounded-xl px-4 py-3.5 font-display text-base text-white/90 hover:bg-white/10">
+              {n.label}
+            </a>
+          ))}
+          <Link to="/register" className="mt-1 block rounded-xl bg-white px-4 py-3.5 text-center font-display text-base font-medium text-night">
+            Open account
+          </Link>
+        </nav>
+      )}
 
       <div className="relative z-10 mx-auto mt-14 grid max-w-6xl items-center gap-10 sm:mt-20 lg:grid-cols-2 lg:gap-6">
         <div>
@@ -405,12 +429,12 @@ function VirtualCards() {
           />
           <ul className="mt-8 space-y-4">
             {points.map(({ icon: Icon, text }, i) => (
-              <Reveal key={text} delay={i * 80}>
-                <li className="flex items-start gap-3">
+              <li key={text}>
+                <Reveal delay={i * 80} className="flex items-start gap-3">
                   <Icon size={20} className="mt-0.5 shrink-0 text-brand" />
                   <span className="text-night/80">{text}</span>
-                </li>
-              </Reveal>
+                </Reveal>
+              </li>
             ))}
           </ul>
         </div>
@@ -783,7 +807,7 @@ function PartnerLogos() {
             {[0, 1].map(i => (
               <div key={i} className="flex shrink-0 items-center gap-5 px-2.5" aria-hidden={i === 1 || undefined}>
                 {PARTNERS.map(p => (
-                  <div key={p} className="grid h-14 place-items-center rounded-xl border border-line bg-white px-7 font-display text-sm font-semibold tracking-tight text-night/60 transition-colors hover:border-brand/30 hover:text-night">
+                  <div key={p} className="grid h-14 place-items-center rounded-xl border border-line bg-white px-7 font-display text-sm font-semibold tracking-tight text-night/80 transition-colors hover:border-brand/30 hover:text-night">
                     {p}
                   </div>
                 ))}
@@ -797,7 +821,7 @@ function PartnerLogos() {
             {[0, 1].map(i => (
               <div key={i} className="flex shrink-0 items-center gap-5 px-2.5" aria-hidden={i === 1 || undefined}>
                 {[...PARTNERS].reverse().map(p => (
-                  <div key={p} className="grid h-14 place-items-center rounded-xl border border-line bg-white px-7 font-display text-sm font-semibold tracking-tight text-night/60 transition-colors hover:border-brand/30 hover:text-night">
+                  <div key={p} className="grid h-14 place-items-center rounded-xl border border-line bg-white px-7 font-display text-sm font-semibold tracking-tight text-night/80 transition-colors hover:border-brand/30 hover:text-night">
                     {p}
                   </div>
                 ))}
@@ -832,7 +856,7 @@ function HowItWorks() {
         {steps.map((s, i) => (
           <Reveal key={s.n} delay={i * 80}>
             <div className="group h-full rounded-[24px] bg-white p-6 transition-shadow hover:shadow-[0_30px_60px_-30px_rgba(8,19,15,0.3)] sm:p-8">
-              <div className="font-display text-[56px] font-semibold leading-none tracking-[-0.05em] text-brand/20 transition-colors group-hover:text-brand">
+              <div aria-hidden="true" className="font-display text-[56px] font-semibold leading-none tracking-[-0.05em] text-brand/20 transition-colors group-hover:text-brand">
                 {s.n}
               </div>
               <h3 className="mt-6 font-display text-xl font-semibold tracking-tight">{s.title}</h3>
@@ -878,9 +902,12 @@ function Footer() {
         <div className="mt-20 grid gap-10 border-t border-white/10 pt-12 sm:grid-cols-2 lg:grid-cols-[1.5fr_1fr_1fr_1fr_1fr]">
           <div>
             <Logo />
-            <p className="mt-4 max-w-xs text-sm leading-relaxed text-white/50">
+            <p className="mt-4 max-w-xs text-sm leading-relaxed text-white/65">
               Everyday banking, payments and financial services — at the branch and online.
             </p>
+            <a href="mailto:support@sterlingcrestbank.com" className="mt-4 inline-flex items-center gap-2 text-sm text-white/80 hover:text-white">
+              <Mail size={15} className="text-brand-bright" /> support@sterlingcrestbank.com
+            </a>
           </div>
           {cols.map(c => (
             <div key={c.title}>
@@ -898,7 +925,7 @@ function Footer() {
           ))}
         </div>
 
-        <div className="mt-14 flex flex-col gap-4 border-t border-white/10 pt-6 text-xs text-white/40">
+        <div className="mt-14 flex flex-col gap-4 border-t border-white/10 pt-6 text-xs text-white/65">
           <div className="flex flex-wrap items-center gap-x-5 gap-y-1">
             <a href="/privacy" className="hover:text-white">Privacy Policy</a>
             <span className="hidden sm:inline text-white/20">·</span>

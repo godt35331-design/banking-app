@@ -3,7 +3,7 @@
 /* Design tokens: Sterling Crest Bank (navy + gold, from the logo). */
 @theme {
   --color-ink: #13233a;
-  --color-brand: #8b6a3e;        /* gold, deep enough for white text and links on white */
+  --color-brand: #7a5c34;        /* gold, deep enough for AA contrast on white and on brand-soft */
   --color-brand-soft: #f5efe5;
   --color-brand-bright: #d4b483; /* light gold, for accents on navy */
   --color-night: #0f2238;        /* logo navy */
@@ -14,11 +14,11 @@
   --color-line: #dfe3ea;
   --color-muted: #5b6678;
   --color-ok: #14804a;
-  --color-warn: #a15c00;
+  --color-warn: #8a4f00;
   --color-bad: #b4232c;
   --font-sans: "Segoe UI", system-ui, -apple-system, sans-serif;
-  --font-display: "Inter Tight", "Segoe UI", system-ui, sans-serif;
-  --font-body: "Inter", "Segoe UI", system-ui, sans-serif;
+  --font-display: "Inter Tight Variable", "Segoe UI", system-ui, sans-serif;
+  --font-body: "Inter Variable", "Segoe UI", system-ui, sans-serif;
 }
 
 body {

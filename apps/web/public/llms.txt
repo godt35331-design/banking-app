@@ -1,0 +1,17 @@
+# Sterling Crest Bank
+
+> Online banking from Sterling Crest Bank: open an account in minutes, hold USD, EUR and GBP wallets, send local and international transfers, create virtual cards, and apply for loans, tax recovery and fund recovery online.
+
+## Key pages
+
+- [Home](https://www.sterlingcrestbank.com/): overview of accounts, payments, cards, services and security
+- [Open an account](https://www.sterlingcrestbank.com/register)
+- [About us](https://www.sterlingcrestbank.com/about)
+- [Partnerships](https://www.sterlingcrestbank.com/partnerships)
+- [Contact](https://www.sterlingcrestbank.com/contact): support@sterlingcrestbank.com
+- [Privacy Policy](https://www.sterlingcrestbank.com/privacy)
+- [Terms of Service](https://www.sterlingcrestbank.com/terms)
+
+## Notes
+
+- Customer dashboards (/dashboard) and staff pages (/admin) require sign-in and are not public content.

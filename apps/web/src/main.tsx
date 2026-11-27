@@ -4,6 +4,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { BrowserRouter } from 'react-router';
 import { AuthProvider } from './hooks/useAuth';
 import { App } from './App';
+import '@fontsource-variable/inter';
+import '@fontsource-variable/inter-tight';
 import './index.css';
 
 const queryClient = new QueryClient({ defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: false } } });
