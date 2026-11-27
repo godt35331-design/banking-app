@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, Post, Res, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Ip, Post, Res, UseGuards } from '@nestjs/common';
 import { SkipThrottle, Throttle } from '@nestjs/throttler';
 import { Response } from 'express';
 import { AuthService } from './auth.service';
@@ -9,6 +9,7 @@ import { ResetPasswordDto } from './dto/reset-password.dto';
 import { JwtGuard } from './jwt.guard';
 import { AuthThrottlerGuard } from './auth-throttler.guard';
 import { CurrentUser } from './decorators';
+import { TurnstileService } from './turnstile.service';
 
 const SECURE = process.env.NODE_ENV === 'production' || (process.env.WEB_ORIGIN ?? '').startsWith('https://');
 const SAME_SITE: 'lax' | 'none' = SECURE ? 'none' : 'lax';
@@ -18,12 +19,13 @@ const COOKIE_OPTS = { ...COOKIE_BASE, maxAge: 7 * 24 * 60 * 60 * 1000 };
 @Controller('auth')
 @UseGuards(AuthThrottlerGuard)
 export class AuthController {
-  constructor(private readonly auth: AuthService) {}
+  constructor(private readonly auth: AuthService, private readonly turnstile: TurnstileService) {}
 
   // 5 new accounts per 15 minutes from one address.
   @Throttle({ default: { limit: 5, ttl: 15 * 60_000 } })
   @Post('register')
-  async register(@Body() dto: RegisterDto, @Res({ passthrough: true }) res: Response) {
+  async register(@Body() dto: RegisterDto, @Ip() ip: string, @Res({ passthrough: true }) res: Response) {
+    await this.turnstile.verify(dto.captchaToken, ip);
     const { token, user } = await this.auth.register(dto);
     res.cookie('token', token, COOKIE_OPTS);
     return { ...user, token };
@@ -33,7 +35,8 @@ export class AuthController {
   @Throttle({ default: { limit: 10, ttl: 15 * 60_000 } })
   @HttpCode(200)
   @Post('login')
-  async login(@Body() dto: LoginDto, @Res({ passthrough: true }) res: Response) {
+  async login(@Body() dto: LoginDto, @Ip() ip: string, @Res({ passthrough: true }) res: Response) {
+    await this.turnstile.verify(dto.captchaToken, ip);
     const { token, user } = await this.auth.login(dto);
     res.cookie('token', token, COOKIE_OPTS);
     return { ...user, token };
@@ -42,7 +45,8 @@ export class AuthController {
   @Throttle({ default: { limit: 5, ttl: 15 * 60_000 } })
   @HttpCode(200)
   @Post('forgot-password')
-  forgotPassword(@Body() dto: ForgotPasswordDto) {
+  async forgotPassword(@Body() dto: ForgotPasswordDto, @Ip() ip: string) {
+    await this.turnstile.verify(dto.captchaToken, ip);
     return this.auth.forgotPassword(dto);
   }
 

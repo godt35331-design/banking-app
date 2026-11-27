@@ -19,6 +19,7 @@ const NAV = [
   { href: '#move-money', label: 'Payments' },
   { href: '#services', label: 'Services' },
   { href: '#security', label: 'Security' },
+  { href: '#faq', label: 'FAQ' },
 ];
 
 export function Landing() {
@@ -37,6 +38,7 @@ export function Landing() {
         <Reviews />
         <PartnerLogos />
         <HowItWorks />
+        <Faq />
       </main>
       <Footer />
     </div>
@@ -153,6 +155,7 @@ function Hero() {
         <div>
           <Reveal delay={80}>
             <h1 className="font-display text-[40px] font-bold leading-[1.02] tracking-[-0.04em] text-white sm:text-[68px]">
+              <span className="mb-5 block font-display text-sm font-medium uppercase tracking-[0.18em] text-brand-bright sm:text-base">Sterling Crest Bank</span>
               The bank you trust,<br />
               <span className="text-brand-bright">now wherever you are.</span>
             </h1>
@@ -869,7 +872,45 @@ function HowItWorks() {
   );
 }
 
-/* ---------- 11. Footer ---------- */
+/* ---------- 12. FAQ ---------- */
+
+const FAQS = [
+  { q: 'How long does it take to open an account?', a: 'About five minutes. Enter your name, email, a password and a secret 4-digit PIN, and your first wallet is ready straight away.' },
+  { q: 'Which currencies can I hold?', a: 'You can hold US dollars, euros and British pounds side by side, and swap between them at any time. The rate is shown before you confirm.' },
+  { q: 'What does it cost to send money?', a: 'Local transfers are free. International transfers cost 1.5% (minimum $5). Currency swaps include a 0.5% margin. The full cost is always shown before you confirm.' },
+  { q: 'How is my account protected?', a: 'Signing in needs your password and a secret PIN. After 5 wrong PIN attempts the account locks, you are signed out automatically after 10 minutes of inactivity, and card numbers are stored encrypted.' },
+  { q: 'Why is my transfer awaiting approval?', a: 'Transfers of $3,000 or more are checked by a member of our team before the money is released, the same care you get at the branch. You can follow the status on your receipt.' },
+  { q: 'How many virtual cards can I have?', a: 'Up to 5. Create a card in seconds from your dashboard, and freeze or unfreeze it whenever you like.' },
+  { q: 'I forgot my password. What do I do?', a: 'Choose "Forgot password?" on the sign-in page. We email you a 6-digit code, and you then set a new password and PIN.' },
+  { q: 'How do I contact support?', a: 'Once signed in, use the chat button on your dashboard. You can also email support@sterlingcrestbank.com and we reply within 24 hours on business days.' },
+];
+
+function Faq() {
+  const schema = {
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    mainEntity: FAQS.map(f => ({ '@type': 'Question', name: f.q, acceptedAnswer: { '@type': 'Answer', text: f.a } })),
+  };
+  return (
+    <Panel id="faq" className="bg-white">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }} />
+      <SectionHead eyebrow="FAQ" title="Questions, answered." desc="The things people ask us most about banking with Sterling Crest online." />
+      <div className="mx-auto mt-12 max-w-3xl divide-y divide-night/10 border-y border-night/10">
+        {FAQS.map(f => (
+          <details key={f.q} className="group py-5">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-4 font-display text-lg font-semibold tracking-tight [&::-webkit-details-marker]:hidden">
+              {f.q}
+              <span aria-hidden="true" className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-paper text-brand transition-transform group-open:rotate-45">+</span>
+            </summary>
+            <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted">{f.a}</p>
+          </details>
+        ))}
+      </div>
+    </Panel>
+  );
+}
+
+/* ---------- 13. Footer ---------- */
 
 function Footer() {
   const cols = [

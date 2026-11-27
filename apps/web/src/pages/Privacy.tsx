@@ -26,6 +26,8 @@ export function Privacy() {
 
       <Section title="Your Rights">
         <p>You have the right to access, correct, or delete your personal data. You may also request a copy of the data we hold about you or ask us to restrict processing. To exercise any of these rights, contact us at privacy@sterlingcrestbank.com.</p>
+        <p>We process personal data in line with the UK General Data Protection Regulation (UK GDPR), the Data Protection Act 2018 and, for customers in the European Union, the EU GDPR. We rely on the following legal bases: performing our contract with you, meeting our legal and regulatory obligations, our legitimate interests in preventing fraud and keeping our services secure, and your consent where we ask for it.</p>
+        <p>If you are unhappy with how we handle your data, please contact us first so we can try to put it right. You also have the right to complain to the Information Commissioner's Office (ICO), the UK data protection regulator, at ico.org.uk or on 0303 123 1113, or to the data protection authority in your EU country.</p>
       </Section>
 
       <Section title="Data Retention">

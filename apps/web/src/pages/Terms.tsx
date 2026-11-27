@@ -38,6 +38,11 @@ export function Terms() {
         <p>{BANK_NAME} is not liable for losses arising from circumstances beyond our reasonable control, including system outages, third-party failures, or force majeure events. Our total liability in any case is limited to the fees you have paid in the preceding 12 months.</p>
       </Section>
 
+      <Section title="Your Right to Cancel">
+        <p>You can cancel your account agreement within 14 days of opening your account, without giving a reason and without any penalty. To cancel, email support@sterlingcrestbank.com or send us a message from the support chat in your dashboard, telling us you wish to cancel.</p>
+        <p>We will confirm your cancellation by email and return any remaining balance to you in accordance with our withdrawal procedures. Transactions you made before cancelling are not reversed by the cancellation. After the 14-day period you can still close your account at any time, as described under Termination.</p>
+      </Section>
+
       <Section title="Termination">
         <p>Either party may close your account at any time. We may suspend or terminate your access if we reasonably believe you have violated these terms. Upon closure, any remaining balance will be returned to you in accordance with our withdrawal procedures.</p>
       </Section>

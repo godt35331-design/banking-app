@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { ArrowLeft, CheckCircle2, KeyRound, Loader2, Mail, ShieldCheck } from 'lucide-react';
 import { AuthHeading, AuthShell, Field, FormError } from '../components/AuthShell';
 import { PillButton } from '../components/landing/motion';
 import { api } from '../lib/api';
+import { Turnstile, turnstileEnabled, type TurnstileHandle } from '../components/Turnstile';
 
 type Step = 'email' | 'code' | 'password' | 'done';
 
@@ -17,19 +18,23 @@ export function ForgotPassword() {
   const [pin, setPin] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [captcha, setCaptcha] = useState<string | null>(null);
+  const captchaRef = useRef<TurnstileHandle>(null);
 
   const handleEmail = async (e: React.FormEvent) => {
     e.preventDefault();
     const clean = email.trim().toLowerCase();
     if (!clean) return setError('Please enter your email address');
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(clean)) return setError('Enter a valid email address');
+    if (turnstileEnabled && !captcha) return setError('Please complete the security check');
     setEmail(clean);
     setError('');
     setLoading(true);
     try {
-      await api.post('/auth/forgot-password', { email: clean });
+      await api.post('/auth/forgot-password', { email: clean, captchaToken: captcha ?? undefined });
       setStep('code');
     } catch (err: any) {
+      captchaRef.current?.reset();
       setError(err.message ?? 'Something went wrong');
     } finally {
       setLoading(false);
@@ -95,6 +100,7 @@ export function ForgotPassword() {
           <FormError message={error} />
           <form onSubmit={handleEmail} className="mt-8 space-y-5">
             <Field label="Email" type="email" autoComplete="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com" autoFocus />
+            <Turnstile ref={captchaRef} onToken={setCaptcha} />
             <div className="pt-2">
               <PillButton full disabled={loading}>
                 {loading ? 'Sending…' : 'Send reset code'}

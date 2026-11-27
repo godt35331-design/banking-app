@@ -5,6 +5,7 @@ import { useAuth } from '../hooks/useAuth';
 import { AuthHeading, AuthShell, Field, FormError, PIN_LENGTH, PinBoxes } from '../components/AuthShell';
 import { PillButton } from '../components/landing/motion';
 import { CardStack } from '../components/landing/mocks';
+import { Turnstile, turnstileEnabled, type TurnstileHandle } from '../components/Turnstile';
 
 export function Login() {
   const { user, login } = useAuth();
@@ -18,6 +19,8 @@ export function Login() {
   // While the success animation plays, hold off the redirect to the dashboard.
   const [celebrating, setCelebrating] = useState(false);
   const busy = useRef(false);
+  const [captcha, setCaptcha] = useState<string | null>(null);
+  const captchaRef = useRef<TurnstileHandle>(null);
 
   if (user && !celebrating) return <Navigate to="/dashboard" replace />;
 
@@ -34,19 +37,21 @@ export function Login() {
   const signIn = async (code: string) => {
     if (busy.current) return;
     if (code.length !== PIN_LENGTH) return setError(`Enter your ${PIN_LENGTH}-digit PIN`);
+    if (turnstileEnabled && !captcha) return setError('Please complete the security check below');
     busy.current = true;
     setError('');
     setPinState('idle');
     setLoading(true);
     setCelebrating(true);
     try {
-      await login(email, password, code);
+      await login(email, password, code, captcha ?? undefined);
       setLoading(false);
       setPinState('success');
       setTimeout(() => setCelebrating(false), 1400);
     } catch (err: any) {
       setCelebrating(false);
       setLoading(false);
+      captchaRef.current?.reset();
       setError(err.message ?? 'Sign in failed');
       const pinProblem = /pin/i.test(err.message ?? '');
       setPinState(pinProblem ? 'error' : 'idle');
@@ -112,6 +117,7 @@ export function Login() {
           <form onSubmit={handlePin} className="mt-8 space-y-6">
             <PinBoxes value={pin} onChange={onPin} autoFocus state={pinState} disabled={loading || ok} />
             <p className="text-xs text-muted">For your security, the account locks after 5 wrong PIN attempts.</p>
+            <Turnstile ref={captchaRef} onToken={setCaptcha} />
             <button
               type="submit"
               data-no-busy

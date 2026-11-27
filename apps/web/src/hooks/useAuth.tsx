@@ -18,8 +18,8 @@ interface User {
 interface AuthCtx {
   user: User | null;
   loading: boolean;
-  login: (email: string, password: string, pin: string) => Promise<void>;
-  register: (data: { name: string; email: string; password: string; pin: string; phone?: string }) => Promise<void>;
+  login: (email: string, password: string, pin: string, captchaToken?: string) => Promise<void>;
+  register: (data: { name: string; email: string; password: string; pin: string; phone?: string; captchaToken?: string }) => Promise<void>;
   logout: () => Promise<void>;
   refresh: () => Promise<void>;
 }
@@ -55,15 +55,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => { refresh(); }, [refresh]);
 
-  const login = async (email: string, password: string, pin: string) => {
-    const res = await api.post<User & { token?: string }>('/auth/login', { email, password, pin });
+  const login = async (email: string, password: string, pin: string, captchaToken?: string) => {
+    const res = await api.post<User & { token?: string }>('/auth/login', { email, password, pin, captchaToken });
     qc.clear();
     if (res.token) setToken(res.token);
     const { token: _, ...u } = res as any;
     setUser(u);
   };
 
-  const register = async (data: { name: string; email: string; password: string; pin: string; phone?: string }) => {
+  const register = async (data: { name: string; email: string; password: string; pin: string; phone?: string; captchaToken?: string }) => {
     const res = await api.post<User & { token?: string }>('/auth/register', data);
     qc.clear();
     if (res.token) setToken(res.token);

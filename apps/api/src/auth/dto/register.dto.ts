@@ -37,4 +37,9 @@ export class RegisterDto {
   @IsString()
   @Matches(/^$|^\+?[\d\s().-]{6,24}$/, { message: 'Enter a valid phone number' })
   phone?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(4096)
+  captchaToken?: string;
 }

@@ -1,5 +1,5 @@
 import { Transform } from 'class-transformer';
-import { IsEmail, IsString, Matches, MaxLength } from 'class-validator';
+import { IsEmail, IsOptional, IsString, Matches, MaxLength } from 'class-validator';
 import { normalizeEmail } from './register.dto';
 
 export class LoginDto {
@@ -15,4 +15,9 @@ export class LoginDto {
   @IsString()
   @Matches(/^\d{4}$/, { message: 'Your PIN is 4 digits' })
   pin: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(4096)
+  captchaToken?: string;
 }

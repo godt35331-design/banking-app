@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Link, Navigate } from 'react-router';
 import { CheckCircle2 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { AuthHeading, AuthShell, Field, FormError, PinBoxes } from '../components/AuthShell';
 import { PillButton } from '../components/landing/motion';
 import { KestrelCard } from '../components/landing/mocks';
+import { Turnstile, turnstileEnabled, type TurnstileHandle } from '../components/Turnstile';
 
 function strength(pw: string) {
   let s = 0;
@@ -21,6 +22,8 @@ export function Register() {
   const [form, setForm] = useState({ name: '', email: '', phone: '', password: '', confirmPassword: '', pin: '', confirmPin: '' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [captcha, setCaptcha] = useState<string | null>(null);
+  const captchaRef = useRef<TurnstileHandle>(null);
 
   if (user) return <Navigate to="/dashboard" replace />;
 
@@ -50,11 +53,13 @@ export function Register() {
       return setError('Choose a PIN that is harder to guess (not 1111 or 1234)');
     }
     if (form.pin !== form.confirmPin) return setError('PINs do not match');
+    if (turnstileEnabled && !captcha) return setError('Please complete the security check');
 
     setLoading(true);
     try {
-      await register({ name, email, password: form.password, pin: form.pin, phone: phone || undefined });
+      await register({ name, email, password: form.password, pin: form.pin, phone: phone || undefined, captchaToken: captcha ?? undefined });
     } catch (err: any) {
+      captchaRef.current?.reset();
       setError(err.message ?? 'Registration failed');
     } finally {
       setLoading(false);
@@ -113,6 +118,7 @@ export function Register() {
           <p className="text-xs text-muted">You'll enter this PIN every time you sign in. Don't share it with anyone — our staff will never ask for it.</p>
         </fieldset>
 
+        <Turnstile ref={captchaRef} onToken={setCaptcha} />
         <PillButton full disabled={loading}>{loading ? 'Creating account…' : 'Create account'}</PillButton>
       </form>
 
