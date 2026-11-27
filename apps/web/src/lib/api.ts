@@ -22,12 +22,16 @@ function authHeaders(): Record<string, string> {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
+export class ApiError extends Error {
+  constructor(message: string, readonly status: number) { super(message); }
+}
+
 async function failure(res: Response) {
   const body = await res.json().catch(() => ({}));
   const msg = Array.isArray(body.message) ? body.message.join('. ') : body.message;
-  if (msg) return new Error(msg);
-  if (res.status >= 500) return new Error(OFFLINE);
-  return new Error(`Something went wrong (error ${res.status}). Please try again.`);
+  if (msg) return new ApiError(msg, res.status);
+  if (res.status >= 500) return new ApiError(OFFLINE, res.status);
+  return new ApiError(`Something went wrong (error ${res.status}). Please try again.`, res.status);
 }
 
 async function send(path: string, init: RequestInit) {

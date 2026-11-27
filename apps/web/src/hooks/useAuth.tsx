@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
-import { api, setToken, getToken } from '../lib/api';
+import { api, ApiError, setToken, getToken } from '../lib/api';
 
 interface User {
   id: string;
@@ -30,16 +30,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   const refresh = useCallback(async () => {
-    if (!getToken()) { setLoading(false); return; }
-    try {
-      const u = await api.get<User>('/auth/me');
-      setUser(u);
-    } catch {
-      setToken(null);
-      setUser(null);
-    } finally {
-      setLoading(false);
+    // Retry while the server wakes up; only a 401 from the server means the sign-in is really gone.
+    for (let attempt = 0; attempt < 4; attempt++) {
+      try {
+        const u = await api.get<User>('/auth/me');
+        setUser(u);
+        setLoading(false);
+        return;
+      } catch (err) {
+        if (err instanceof ApiError && err.status === 401) {
+          setToken(null);
+          setUser(null);
+          setLoading(false);
+          return;
+        }
+        if (!getToken()) break;
+        await new Promise(r => setTimeout(r, 3000));
+      }
     }
+    setLoading(false);
   }, []);
 
   useEffect(() => { refresh(); }, [refresh]);
