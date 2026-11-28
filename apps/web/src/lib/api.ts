@@ -52,6 +52,24 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return res.json();
 }
 
+/**
+ * Opens a protected file (an uploaded document) in a new tab. A plain link can't carry the
+ * sign-in token and would point at the website instead of the server, so fetch it here.
+ */
+export async function openFile(path: string) {
+  const win = window.open('', '_blank'); // opened during the click so browsers don't block it
+  try {
+    const res = await send(path, { method: 'GET' });
+    if (!res.ok) throw await failure(res);
+    const url = URL.createObjectURL(await res.blob());
+    if (win) { win.opener = null; win.location.href = url; } else window.location.href = url;
+    setTimeout(() => URL.revokeObjectURL(url), 5 * 60_000);
+  } catch (err) {
+    win?.close();
+    alert((err as Error).message || 'Could not open the document.');
+  }
+}
+
 export const api = {
   get: <T>(path: string) => request<T>(path),
   post: <T>(path: string, data?: unknown) =>
