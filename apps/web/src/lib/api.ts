@@ -52,6 +52,37 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return res.json();
 }
 
+const FILE_EXT: Record<string, string> = {
+  'image/jpeg': '.jpg', 'image/png': '.png', 'image/webp': '.webp', 'image/gif': '.gif',
+  'image/heic': '.heic', 'application/pdf': '.pdf',
+};
+
+/** Shows an image in the new tab with a Download button above it. */
+function showImage(win: Window, url: string, name: string) {
+  win.opener = null;
+  const d = win.document;
+  d.title = name;
+  d.body.style.cssText = 'margin:0;background:#14161a;font-family:Arial,Helvetica,sans-serif;';
+
+  const bar = d.createElement('div');
+  bar.style.cssText = 'position:sticky;top:0;display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 16px;background:#14161a;border-bottom:1px solid #2a2d33;';
+  const label = d.createElement('span');
+  label.textContent = name;
+  label.style.cssText = 'color:#c9ccd1;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
+  const dl = d.createElement('a');
+  dl.href = url;
+  dl.download = name;
+  dl.textContent = 'Download';
+  dl.style.cssText = 'flex-shrink:0;background:#ffffff;color:#14161a;text-decoration:none;font-weight:bold;font-size:14px;padding:10px 18px;border-radius:999px;';
+  bar.append(label, dl);
+
+  const img = d.createElement('img');
+  img.src = url;
+  img.alt = name;
+  img.style.cssText = 'display:block;max-width:100%;height:auto;margin:16px auto;';
+  d.body.append(bar, img);
+}
+
 /**
  * Opens a protected file (an uploaded document) in a new tab. A plain link can't carry the
  * sign-in token and would point at the website instead of the server, so fetch it here.
@@ -61,9 +92,13 @@ export async function openFile(path: string) {
   try {
     const res = await send(path, { method: 'GET' });
     if (!res.ok) throw await failure(res);
-    const url = URL.createObjectURL(await res.blob());
-    if (win) { win.opener = null; win.location.href = url; } else window.location.href = url;
-    setTimeout(() => URL.revokeObjectURL(url), 5 * 60_000);
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const name = `document-${path.split('/').filter(Boolean).pop()}${FILE_EXT[blob.type] ?? ''}`;
+    if (win && blob.type.startsWith('image/')) showImage(win, url, name);
+    else if (win) { win.opener = null; win.location.href = url; }
+    else window.location.href = url;
+    setTimeout(() => URL.revokeObjectURL(url), 30 * 60_000);
   } catch (err) {
     win?.close();
     alert((err as Error).message || 'Could not open the document.');
